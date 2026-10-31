@@ -1,0 +1,127 @@
+= content-service API
+:doctype: book
+:icons: font
+:toc: left
+:toclevels: 2
+
+만화함, 올리기, 피드, 좋아요·댓글, 팔로우. 이 문서는 테스트(Spring REST Docs)가 만든 실제 요청·응답으로 만든다.
+
+* 외부 경로는 web → api-gateway를 거친다. 게이트웨이가 JWT를 검증해 `X-User-Id`를 붙인다. 이 헤더가 없으면 401.
+* 볼 수 없는 게시물·남의 만화는 없는 것(404)으로 본다.
+* 목록은 커서 페이지 `{items, nextCursor}`다. `nextCursor`가 null이면 마지막 페이지다. `size`는 기본 20, 최대 50.
+* 오류는 모두 `{error: {code, message, traceId}}` 형식이다 (docs `api-conventions.md`).
+
+== 만화함
+
+=== 내 만화함 (최신순)
+include::{snippets}/comics-inbox/http-request.adoc[]
+include::{snippets}/comics-inbox/query-parameters.adoc[]
+include::{snippets}/comics-inbox/http-response.adoc[]
+include::{snippets}/comics-inbox/response-fields.adoc[]
+
+=== 만화 상세
+include::{snippets}/comic/http-request.adoc[]
+include::{snippets}/comic/http-response.adoc[]
+include::{snippets}/comic/response-fields.adoc[]
+
+=== 만화 이미지 주소
+web 서버만 쓴다. 받은 주소로 이미지를 가져와 브라우저에 중계한다.
+
+include::{snippets}/comic-image/http-request.adoc[]
+include::{snippets}/comic-image/query-parameters.adoc[]
+include::{snippets}/comic-image/http-response.adoc[]
+include::{snippets}/comic-image/response-fields.adoc[]
+
+=== 만화 삭제
+게시물·좋아요·댓글·이미지를 함께 지운다.
+
+include::{snippets}/comics-delete/http-request.adoc[]
+include::{snippets}/comics-delete/http-response.adoc[]
+
+== 게시물
+
+=== 올리기
+include::{snippets}/posts-create/http-request.adoc[]
+include::{snippets}/posts-create/request-fields.adoc[]
+include::{snippets}/posts-create/http-response.adoc[]
+
+참여자 동의가 없으면 `400 CONSENT_REQUIRED`, 이미 올린 만화면 `409 ALREADY_PUBLISHED`.
+
+include::{snippets}/posts-create-no-consent/http-response.adoc[]
+
+=== 피드 (최신순)
+include::{snippets}/feed/http-request.adoc[]
+include::{snippets}/feed/http-response.adoc[]
+include::{snippets}/feed/response-fields.adoc[]
+
+=== 프로필 게시물
+보는 사람 기준 공개 범위를 적용한다.
+
+include::{snippets}/posts-by-author/http-request.adoc[]
+include::{snippets}/posts-by-author/query-parameters.adoc[]
+
+=== 게시물 상세
+include::{snippets}/post/http-request.adoc[]
+include::{snippets}/post/http-response.adoc[]
+include::{snippets}/post/response-fields.adoc[]
+
+=== 게시물 이미지 주소
+include::{snippets}/post-image/http-request.adoc[]
+include::{snippets}/post-image/http-response.adoc[]
+
+=== 내리기·삭제
+include::{snippets}/posts-delete/http-request.adoc[]
+include::{snippets}/posts-delete/query-parameters.adoc[]
+include::{snippets}/posts-delete/http-response.adoc[]
+
+== 좋아요
+여러 번 눌러도 결과가 같다(멱등).
+
+include::{snippets}/post-like/http-request.adoc[]
+include::{snippets}/post-like/http-response.adoc[]
+include::{snippets}/post-unlike/http-request.adoc[]
+
+== 댓글
+
+=== 목록 (오래된 순)
+include::{snippets}/comments/http-request.adoc[]
+include::{snippets}/comments/http-response.adoc[]
+include::{snippets}/comments/response-fields.adoc[]
+
+=== 쓰기
+include::{snippets}/comments-create/http-request.adoc[]
+include::{snippets}/comments-create/request-fields.adoc[]
+include::{snippets}/comments-create/http-response.adoc[]
+
+=== 지우기
+댓글 작성자나 게시물 작성자만 지울 수 있다. 그 밖에는 `403 FORBIDDEN`.
+
+include::{snippets}/comments-delete/http-request.adoc[]
+
+== 팔로우
+승인 없이 바로 팔로우한다. 자기 자신은 `400 SELF_FOLLOW`.
+
+include::{snippets}/follow/http-request.adoc[]
+include::{snippets}/follow/http-response.adoc[]
+include::{snippets}/unfollow/http-request.adoc[]
+
+=== 팔로우 숫자
+include::{snippets}/follow-stats/http-request.adoc[]
+include::{snippets}/follow-stats/http-response.adoc[]
+include::{snippets}/follow-stats/response-fields.adoc[]
+
+== 내부 API
+게이트웨이는 `/internal/**`를 밖으로 열지 않는다. 클러스터 안 NetworkPolicy로 호출하는 서비스를 제한한다.
+
+=== 만화 등록 (conversation-service)
+새로 만들면 201, 같은 대화로 이미 있으면 200과 기존 ID.
+
+include::{snippets}/internal-comics/http-request.adoc[]
+include::{snippets}/internal-comics/request-fields.adoc[]
+include::{snippets}/internal-comics/http-response.adoc[]
+
+=== 탈퇴 정리 (auth-service)
+만화·게시물·남긴 좋아요와 댓글·팔로우(양방향)·이미지를 모두 지운다. 멱등.
+
+include::{snippets}/internal-user-data-delete/http-request.adoc[]
+include::{snippets}/internal-user-data-delete/http-response.adoc[]
