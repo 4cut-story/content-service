@@ -22,10 +22,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.jayway.jsonpath.JsonPath;
-import java.util.UUID;
 import net.java21.fourcut.content.comic.Comic;
 import net.java21.fourcut.content.comic.ComicRepository;
 import net.java21.fourcut.content.post.PostRepository;
+import net.java21.fourcut.content.support.PublicId;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -113,15 +113,15 @@ class ContentFlowIntegrationTest {
   }
 
   private static MockHttpServletRequestBuilder as(
-      MockHttpServletRequestBuilder request, UUID user) {
-    return request.header("X-User-Id", user.toString());
+      MockHttpServletRequestBuilder request, String user) {
+    return request.header("X-User-Id", user);
   }
 
   private ResultActions perform(MockHttpServletRequestBuilder request) throws Exception {
     return mvc.perform(request);
   }
 
-  private String register(UUID owner, UUID conversation) throws Exception {
+  private String register(String owner, String conversation) throws Exception {
     String body =
         perform(
                 post("/internal/comics")
@@ -134,7 +134,7 @@ class ContentFlowIntegrationTest {
     return JsonPath.read(body, "$.comicId");
   }
 
-  private static String registerBody(UUID owner, UUID conversation) {
+  private static String registerBody(String owner, String conversation) {
     return """
         {"ownerId":"%s","conversationId":"%s","title":"편의점 앞에서","imageKey":"comics/%s/full.png",
          "thumbKey":"comics/%s/thumb.png","language":"ko","nameWarnings":["민지"]}
@@ -142,7 +142,7 @@ class ContentFlowIntegrationTest {
         .formatted(owner, conversation, conversation, conversation);
   }
 
-  private String publish(UUID author, String comicId, String visibility) throws Exception {
+  private String publish(String author, String comicId, String visibility) throws Exception {
     String body =
         perform(
                 as(post("/api/v1/posts"), author)
@@ -181,8 +181,8 @@ class ContentFlowIntegrationTest {
   @Test
   @DisplayName("FR-001~006: 만화 등록, 만화함, 올리기, 피드, 상세, 이미지")
   void comicToFeed() throws Exception {
-    UUID alice = UUID.randomUUID();
-    UUID conversation = UUID.randomUUID();
+    String alice = PublicId.generate();
+    String conversation = PublicId.generate();
 
     String comicId =
         JsonPath.read(
@@ -258,7 +258,7 @@ class ContentFlowIntegrationTest {
                 responseFields(IMAGE)));
 
     // 다른 사람의 만화는 없는 것으로 본다
-    perform(as(get("/api/v1/comics/{id}", comicId), UUID.randomUUID()))
+    perform(as(get("/api/v1/comics/{id}", comicId), PublicId.generate()))
         .andExpect(status().isNotFound());
 
     // 참여자 동의 없이는 올리지 않는다
@@ -315,7 +315,7 @@ class ContentFlowIntegrationTest {
         .andExpect(jsonPath("$.state").value("POSTED"))
         .andExpect(jsonPath("$.postId").value(postId));
 
-    UUID bob = UUID.randomUUID();
+    String bob = PublicId.generate();
     perform(as(get("/api/v1/feed"), bob))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.items[?(@.postId == '" + postId + "')].title").value("편의점 앞에서"))
@@ -378,10 +378,10 @@ class ContentFlowIntegrationTest {
   @Test
   @DisplayName("FR-007~009: 좋아요·댓글 (멱등, 집계, 삭제 권한)")
   void likesAndComments() throws Exception {
-    UUID alice = UUID.randomUUID();
-    UUID bob = UUID.randomUUID();
-    UUID carol = UUID.randomUUID();
-    String postId = publish(alice, register(alice, UUID.randomUUID()), "PUBLIC");
+    String alice = PublicId.generate();
+    String bob = PublicId.generate();
+    String carol = PublicId.generate();
+    String postId = publish(alice, register(alice, PublicId.generate()), "PUBLIC");
 
     perform(as(put("/api/v1/posts/{id}/like", postId), bob))
         .andExpect(status().isNoContent())
@@ -481,9 +481,9 @@ class ContentFlowIntegrationTest {
   @Test
   @DisplayName("FR-010~011: 팔로우, 팔로워 공개 게시물")
   void followsAndVisibility() throws Exception {
-    UUID alice = UUID.randomUUID();
-    UUID bob = UUID.randomUUID();
-    String postId = publish(alice, register(alice, UUID.randomUUID()), "FOLLOWERS");
+    String alice = PublicId.generate();
+    String bob = PublicId.generate();
+    String postId = publish(alice, register(alice, PublicId.generate()), "FOLLOWERS");
 
     perform(as(get("/api/v1/posts/{id}", postId), bob)).andExpect(status().isNotFound());
     perform(as(put("/api/v1/posts/{id}/like", postId), bob)).andExpect(status().isNotFound());
@@ -526,12 +526,12 @@ class ContentFlowIntegrationTest {
   @Test
   @DisplayName("FR-012~013: 내리기는 만화함으로, 삭제는 만화·이미지까지")
   void unpublishAndDelete() throws Exception {
-    UUID alice = UUID.randomUUID();
-    UUID conversation = UUID.randomUUID();
+    String alice = PublicId.generate();
+    String conversation = PublicId.generate();
     String comicId = register(alice, conversation);
     String postId = publish(alice, comicId, "PUBLIC");
 
-    perform(as(delete("/api/v1/posts/{id}?mode=unpublish", postId), UUID.randomUUID()))
+    perform(as(delete("/api/v1/posts/{id}?mode=unpublish", postId), PublicId.generate()))
         .andExpect(status().isForbidden());
     perform(as(delete("/api/v1/posts/{id}?mode=nope", postId), alice))
         .andExpect(status().isBadRequest());
@@ -545,21 +545,21 @@ class ContentFlowIntegrationTest {
                 queryParameters(
                     parameterWithName("mode")
                         .description("unpublish(만화함으로 내리기) 또는 delete(만화까지 삭제)"))));
-    assertThat(comics.findById(UUID.fromString(comicId)))
+    assertThat(comics.findByPublicId(comicId))
         .get()
         .extracting(Comic::getState)
         .isEqualTo(Comic.State.IN_INBOX);
-    assertThat(posts.findById(UUID.fromString(postId))).isEmpty();
+    assertThat(posts.findByPublicId(postId)).isEmpty();
 
     String again = publish(alice, comicId, "PUBLIC");
     putObject("comics/" + conversation + "/full.png");
     putObject("comics/" + conversation + "/thumb.png");
     perform(as(delete("/api/v1/posts/{id}?mode=delete", again), alice))
         .andExpect(status().isNoContent());
-    assertThat(comics.findById(UUID.fromString(comicId))).isEmpty();
+    assertThat(comics.findByPublicId(comicId)).isEmpty();
     assertThat(objectExists("comics/" + conversation + "/full.png")).isFalse();
 
-    String other = register(alice, UUID.randomUUID());
+    String other = register(alice, PublicId.generate());
     perform(as(delete("/api/v1/comics/{id}", other), alice))
         .andExpect(status().isNoContent())
         .andDo(doc("comics-delete", pathParameters(parameterWithName("id").description("만화 ID"))));
@@ -569,11 +569,11 @@ class ContentFlowIntegrationTest {
   @Test
   @DisplayName("M-03: 탈퇴하면 만화·게시물·반응·팔로우·이미지를 모두 지운다 (멱등)")
   void withdrawal() throws Exception {
-    UUID alice = UUID.randomUUID();
-    UUID bob = UUID.randomUUID();
-    UUID conversation = UUID.randomUUID();
+    String alice = PublicId.generate();
+    String bob = PublicId.generate();
+    String conversation = PublicId.generate();
     String alicePost = publish(alice, register(alice, conversation), "PUBLIC");
-    String bobPost = publish(bob, register(bob, UUID.randomUUID()), "PUBLIC");
+    String bobPost = publish(bob, register(bob, PublicId.generate()), "PUBLIC");
     putObject("comics/" + conversation + "/full.png");
     perform(as(put("/api/v1/posts/{id}/like", bobPost), alice));
     perform(
@@ -591,7 +591,7 @@ class ContentFlowIntegrationTest {
                 pathParameters(parameterWithName("userId").description("탈퇴한 사용자 ID"))));
     perform(delete("/internal/users/{userId}/data", alice)).andExpect(status().isNoContent());
 
-    assertThat(posts.findById(UUID.fromString(alicePost))).isEmpty();
+    assertThat(posts.findByPublicId(alicePost)).isEmpty();
     assertThat(comics.findByOwnerId(alice)).isEmpty();
     assertThat(objectExists("comics/" + conversation + "/full.png")).isFalse();
     perform(as(get("/api/v1/posts/{id}", bobPost), bob))
@@ -614,7 +614,8 @@ class ContentFlowIntegrationTest {
             post("/internal/comics")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(
-                    registerBody(UUID.randomUUID(), UUID.randomUUID()).replace("\"ko\"", "\"jp\"")))
+                    registerBody(PublicId.generate(), PublicId.generate())
+                        .replace("\"ko\"", "\"jp\"")))
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.error.code").value("VALIDATION_FAILED"));
   }

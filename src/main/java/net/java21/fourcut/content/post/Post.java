@@ -6,8 +6,8 @@ import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Table;
 import java.time.Instant;
-import java.util.UUID;
 import net.java21.fourcut.content.support.BaseEntity;
+import net.java21.fourcut.content.support.PublicId;
 
 /** 게시물 = 만화 1장 + 캡션 1줄 + 공개 범위. 만화와 1:1. */
 @Entity
@@ -15,10 +15,14 @@ import net.java21.fourcut.content.support.BaseEntity;
 public class Post extends BaseEntity {
 
   @Column(name = "comic_id", nullable = false)
-  private UUID comicId;
+  private Long comicId;
+
+  /** 밖에 보이는 게시물 ID. */
+  @Column(name = "public_id", nullable = false, updatable = false, length = PublicId.LENGTH)
+  private String publicId = PublicId.generate();
 
   @Column(name = "author_id", nullable = false)
-  private UUID authorId;
+  private String authorId;
 
   @Column(length = 100)
   private String caption;
@@ -44,7 +48,7 @@ public class Post extends BaseEntity {
   }
 
   public Post(
-      UUID comicId, UUID authorId, String caption, Visibility visibility, Instant publishedAt) {
+      Long comicId, String authorId, String caption, Visibility visibility, Instant publishedAt) {
     this.comicId = comicId;
     this.authorId = authorId;
     this.caption = caption;
@@ -53,11 +57,15 @@ public class Post extends BaseEntity {
     this.publishedAt = publishedAt;
   }
 
-  public UUID getComicId() {
+  public Long getComicId() {
     return comicId;
   }
 
-  public UUID getAuthorId() {
+  public String getPublicId() {
+    return publicId;
+  }
+
+  public String getAuthorId() {
     return authorId;
   }
 

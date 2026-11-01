@@ -2,7 +2,6 @@ package net.java21.fourcut.content.userdata;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
 import net.java21.fourcut.content.comic.Comic;
 import net.java21.fourcut.content.comic.ComicRepository;
 import net.java21.fourcut.content.comment.Comment;
@@ -42,7 +41,7 @@ public class UserDataService {
   }
 
   @Transactional
-  public void deleteAll(UUID userId) {
+  public void deleteAll(String userId) {
     List<Comic> owned = comics.findByOwnerId(userId);
     List<String> keys = new ArrayList<>();
     for (Comic c : owned) {

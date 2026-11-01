@@ -3,7 +3,6 @@ package net.java21.fourcut.content.comic;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 import java.util.stream.Collectors;
 import net.java21.fourcut.content.error.ApiException;
 import net.java21.fourcut.content.post.Post;
@@ -11,6 +10,7 @@ import net.java21.fourcut.content.post.PostRepository;
 import net.java21.fourcut.content.storage.ObjectStorage;
 import net.java21.fourcut.content.support.Cursor;
 import net.java21.fourcut.content.support.CursorPage;
+import net.java21.fourcut.content.support.PublicId;
 import org.springframework.data.domain.Limit;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -44,7 +44,7 @@ public class ComicService {
   public RegisteredComic register(RegisterComicRequest r) {
     return comics
         .findByConversationId(r.conversationId())
-        .map(c -> new RegisteredComic(c.getId(), false))
+        .map(c -> new RegisteredComic(c.getPublicId(), false))
         .orElseGet(
             () -> {
               List<String> warnings = r.nameWarnings() == null ? List.of() : r.nameWarnings();
@@ -58,12 +58,12 @@ public class ComicService {
                           r.thumbKey(),
                           r.language(),
                           json.writeValueAsString(warnings)));
-              return new RegisteredComic(saved.getId(), true);
+              return new RegisteredComic(saved.getPublicId(), true);
             });
   }
 
   @Transactional(readOnly = true)
-  public CursorPage<ComicView> inbox(UUID owner, String cursor, Integer size) {
+  public CursorPage<ComicView> inbox(String owner, String cursor, Integer size) {
     int limit = CursorPage.size(size);
     Cursor from = Cursor.decodeOr(cursor, Cursor.NEWEST_FIRST);
     List<Comic> rows = comics.inbox(owner, from.at(), from.id(), Limit.of(limit + 1));
@@ -71,20 +71,25 @@ public class ComicService {
   }
 
   @Transactional(readOnly = true)
-  public ComicView get(UUID owner, UUID comicId) {
+  public ComicView get(String owner, String comicId) {
     return viewsOf(List.of(owned(owner, comicId))).get(0);
   }
 
   /** 만화를 지운다. 게시물·좋아요·댓글은 DB에서 함께 지워지고, 이미지도 지운다. */
   @Transactional
-  public void delete(UUID owner, UUID comicId) {
-    Comic comic = owned(owner, comicId);
+  public void delete(String owner, String comicId) {
+    remove(owned(owner, comicId));
+  }
+
+  /** 만화와 이미지를 지운다. 주인 확인은 부르는 쪽이 한다. */
+  @Transactional
+  public void remove(Comic comic) {
     storage.delete(List.of(comic.getImageKey(), comic.getThumbKey()));
     comics.delete(comic);
   }
 
   @Transactional(readOnly = true)
-  public ImageUrl image(UUID owner, UUID comicId, ImageSize size) {
+  public ImageUrl image(String owner, String comicId, ImageSize size) {
     return imageOf(owned(owner, comicId), size);
   }
 
@@ -94,26 +99,30 @@ public class ComicService {
         storage.presignGet(size.keyOf(comic), IMAGE_URL_TTL), IMAGE_URL_TTL.toSeconds());
   }
 
-  private Comic owned(UUID owner, UUID comicId) {
+  /** 주인의 만화. 없거나, 남의 것이거나, 형식이 틀린 ID면 404. */
+  private Comic owned(String owner, String comicId) {
+    if (!PublicId.isValid(comicId)) {
+      throw ApiException.notFound();
+    }
     return comics
-        .findById(comicId)
+        .findByPublicId(comicId)
         .filter(c -> c.getOwnerId().equals(owner))
         .orElseThrow(ApiException::notFound);
   }
 
   private List<ComicView> viewsOf(List<Comic> page) {
-    List<UUID> posted =
+    List<Long> posted =
         page.stream().filter(c -> c.getState() == Comic.State.POSTED).map(Comic::getId).toList();
-    Map<UUID, UUID> postIds =
+    Map<Long, String> postIds =
         posted.isEmpty()
             ? Map.of()
             : posts.findByComicIdIn(posted).stream()
-                .collect(Collectors.toMap(Post::getComicId, Post::getId, (a, b) -> a));
+                .collect(Collectors.toMap(Post::getComicId, Post::getPublicId, (a, b) -> a));
     return page.stream()
         .map(
             c ->
                 new ComicView(
-                    c.getId(),
+                    c.getPublicId(),
                     c.getConversationId(),
                     c.getTitle(),
                     c.getLanguage(),

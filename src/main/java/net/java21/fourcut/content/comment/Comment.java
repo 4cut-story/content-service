@@ -3,8 +3,8 @@ package net.java21.fourcut.content.comment;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
-import java.util.UUID;
 import net.java21.fourcut.content.support.BaseEntity;
+import net.java21.fourcut.content.support.PublicId;
 
 /** 댓글. 답글 없이 한 단계. */
 @Entity
@@ -12,10 +12,14 @@ import net.java21.fourcut.content.support.BaseEntity;
 public class Comment extends BaseEntity {
 
   @Column(name = "post_id", nullable = false)
-  private UUID postId;
+  private Long postId;
+
+  /** 밖에 보이는 댓글 ID. */
+  @Column(name = "public_id", nullable = false, updatable = false, length = PublicId.LENGTH)
+  private String publicId = PublicId.generate();
 
   @Column(name = "author_id", nullable = false)
-  private UUID authorId;
+  private String authorId;
 
   @Column(nullable = false, length = 300)
   private String text;
@@ -24,17 +28,21 @@ public class Comment extends BaseEntity {
     // JPA 전용
   }
 
-  public Comment(UUID postId, UUID authorId, String text) {
+  public Comment(Long postId, String authorId, String text) {
     this.postId = postId;
     this.authorId = authorId;
     this.text = text;
   }
 
-  public UUID getPostId() {
+  public Long getPostId() {
     return postId;
   }
 
-  public UUID getAuthorId() {
+  public String getPublicId() {
+    return publicId;
+  }
+
+  public String getAuthorId() {
     return authorId;
   }
 

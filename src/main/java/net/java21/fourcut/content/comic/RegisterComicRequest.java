@@ -5,12 +5,12 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import java.util.List;
-import java.util.UUID;
+import net.java21.fourcut.content.support.PublicId;
 
 /** conversation-service가 완성된 만화를 등록할 때 보내는 본문 (내부 API). */
 public record RegisterComicRequest(
-    @NotNull UUID ownerId,
-    @NotNull UUID conversationId,
+    @NotNull @Pattern(regexp = PublicId.PATTERN) String ownerId,
+    @NotNull @Pattern(regexp = PublicId.PATTERN) String conversationId,
     @NotBlank @Size(max = 100) String title,
     @NotBlank @Size(max = 500) String imageKey,
     @NotBlank @Size(max = 500) String thumbKey,
