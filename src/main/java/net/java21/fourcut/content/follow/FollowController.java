@@ -1,6 +1,7 @@
 package net.java21.fourcut.content.follow;
 
 import net.java21.fourcut.content.web.HeaderNames;
+import net.java21.fourcut.content.web.Viewer;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -41,7 +42,8 @@ public class FollowController {
 
   @GetMapping("/api/v1/follows/{userId}/stats")
   public FollowStats stats(
-      @RequestHeader(HeaderNames.USER_ID) String viewer, @PathVariable String userId) {
-    return follows.stats(viewer, userId);
+      @RequestHeader(value = HeaderNames.USER_ID, required = false) String viewer,
+      @PathVariable String userId) {
+    return follows.stats(Viewer.of(viewer), userId);
   }
 }
