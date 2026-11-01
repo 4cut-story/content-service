@@ -475,7 +475,8 @@ class ContentFlowIntegrationTest {
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.error.code").value("VALIDATION_FAILED"));
     perform(as(get("/api/v1/feed").param("size", "51"), alice)).andExpect(status().isBadRequest());
-    perform(get("/api/v1/feed")).andExpect(status().isUnauthorized());
+    // 읽기는 로그인 없이 되지만(공개만), 쓰기는 사용자 헤더가 없으면 401
+    perform(put("/api/v1/posts/{id}/like", postId)).andExpect(status().isUnauthorized());
   }
 
   @Test
