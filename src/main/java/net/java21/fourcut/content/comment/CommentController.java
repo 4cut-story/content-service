@@ -1,7 +1,6 @@
 package net.java21.fourcut.content.comment;
 
 import jakarta.validation.Valid;
-import java.util.UUID;
 import net.java21.fourcut.content.support.CursorPage;
 import net.java21.fourcut.content.web.HeaderNames;
 import org.springframework.http.HttpStatus;
@@ -27,8 +26,8 @@ public class CommentController {
 
   @GetMapping("/api/v1/posts/{postId}/comments")
   public CursorPage<CommentView> list(
-      @RequestHeader(HeaderNames.USER_ID) UUID userId,
-      @PathVariable UUID postId,
+      @RequestHeader(HeaderNames.USER_ID) String userId,
+      @PathVariable String postId,
       @RequestParam(required = false) String cursor,
       @RequestParam(required = false) Integer size) {
     return comments.list(userId, postId, cursor, size);
@@ -36,8 +35,8 @@ public class CommentController {
 
   @PostMapping("/api/v1/posts/{postId}/comments")
   public ResponseEntity<CommentView> add(
-      @RequestHeader(HeaderNames.USER_ID) UUID userId,
-      @PathVariable UUID postId,
+      @RequestHeader(HeaderNames.USER_ID) String userId,
+      @PathVariable String postId,
       @Valid @RequestBody CommentRequest body) {
     return ResponseEntity.status(HttpStatus.CREATED)
         .body(comments.add(userId, postId, body.text()));
@@ -45,7 +44,7 @@ public class CommentController {
 
   @DeleteMapping("/api/v1/comments/{id}")
   public ResponseEntity<Void> delete(
-      @RequestHeader(HeaderNames.USER_ID) UUID userId, @PathVariable UUID id) {
+      @RequestHeader(HeaderNames.USER_ID) String userId, @PathVariable String id) {
     comments.delete(userId, id);
     return ResponseEntity.noContent().build();
   }

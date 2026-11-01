@@ -1,7 +1,6 @@
 package net.java21.fourcut.content.comment;
 
 import java.util.List;
-import java.util.UUID;
 import net.java21.fourcut.content.error.ApiException;
 import net.java21.fourcut.content.error.ErrorCode;
 import net.java21.fourcut.content.post.Post;
@@ -9,6 +8,7 @@ import net.java21.fourcut.content.post.PostRepository;
 import net.java21.fourcut.content.post.PostService;
 import net.java21.fourcut.content.support.Cursor;
 import net.java21.fourcut.content.support.CursorPage;
+import net.java21.fourcut.content.support.PublicId;
 import org.springframework.data.domain.Limit;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,30 +28,35 @@ public class CommentService {
   }
 
   @Transactional(readOnly = true)
-  public CursorPage<CommentView> list(UUID viewer, UUID postId, String cursor, Integer size) {
-    postService.visible(viewer, postId);
+  public CursorPage<CommentView> list(String viewer, String postId, String cursor, Integer size) {
+    Post post = postService.visible(viewer, postId);
     int limit = CursorPage.size(size);
     Cursor from = Cursor.decodeOr(cursor, Cursor.OLDEST_FIRST);
-    List<Comment> rows = comments.page(postId, from.at(), from.id(), Limit.of(limit + 1));
+    List<Comment> rows = comments.page(post.getId(), from.at(), from.id(), Limit.of(limit + 1));
     return CursorPage.of(
         rows,
         limit,
         c -> new Cursor(c.getCreatedAt(), c.getId()),
-        page -> page.stream().map(CommentView::of).toList());
+        page -> page.stream().map(c -> CommentView.of(c, postId)).toList());
   }
 
   @Transactional
-  public CommentView add(UUID viewer, UUID postId, String text) {
-    postService.visible(viewer, postId);
-    Comment saved = comments.saveAndFlush(new Comment(postId, viewer, text.strip()));
-    posts.addComments(postId, 1);
-    return CommentView.of(saved);
+  public CommentView add(String viewer, String postId, String text) {
+    Post post = postService.visible(viewer, postId);
+    Comment saved = comments.saveAndFlush(new Comment(post.getId(), viewer, text.strip()));
+    posts.addComments(post.getId(), 1);
+    return CommentView.of(saved, postId);
   }
 
   @Transactional
-  public void delete(UUID viewer, UUID commentId) {
-    Comment comment = comments.findById(commentId).orElseThrow(ApiException::notFound);
-    Post post = postService.visible(viewer, comment.getPostId());
+  public void delete(String viewer, String commentId) {
+    if (!PublicId.isValid(commentId)) {
+      throw ApiException.notFound();
+    }
+    Comment comment = comments.findByPublicId(commentId).orElseThrow(ApiException::notFound);
+    Post post =
+        postService.visible(
+            viewer, posts.findById(comment.getPostId()).orElseThrow(ApiException::notFound));
     if (!comment.getAuthorId().equals(viewer) && !post.getAuthorId().equals(viewer)) {
       throw new ApiException(ErrorCode.FORBIDDEN);
     }

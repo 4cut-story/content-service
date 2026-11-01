@@ -1,8 +1,8 @@
 package net.java21.fourcut.content.follow;
 
-import java.util.UUID;
 import net.java21.fourcut.content.error.ApiException;
 import net.java21.fourcut.content.error.ErrorCode;
+import net.java21.fourcut.content.support.PublicId;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -17,7 +17,8 @@ public class FollowService {
   }
 
   @Transactional
-  public void follow(UUID follower, UUID followee) {
+  public void follow(String follower, String followee) {
+    requireUserId(followee);
     if (follower.equals(followee)) {
       throw new ApiException(ErrorCode.SELF_FOLLOW);
     }
@@ -27,15 +28,24 @@ public class FollowService {
   }
 
   @Transactional
-  public void unfollow(UUID follower, UUID followee) {
+  public void unfollow(String follower, String followee) {
+    requireUserId(followee);
     follows.unfollow(follower, followee);
   }
 
   @Transactional(readOnly = true)
-  public FollowStats stats(UUID viewer, UUID user) {
+  public FollowStats stats(String viewer, String user) {
+    requireUserId(user);
     return new FollowStats(
         follows.countByFolloweeId(user),
         follows.countByFollowerId(user),
         follows.existsByFollowerIdAndFolloweeId(viewer, user));
+  }
+
+  /** 사용자 공개 ID 형식이 아니면 없는 사용자로 본다(404). */
+  private static void requireUserId(String userId) {
+    if (!PublicId.isValid(userId)) {
+      throw ApiException.notFound();
+    }
   }
 }

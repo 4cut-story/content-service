@@ -1,6 +1,5 @@
 package net.java21.fourcut.content.comic;
 
-import java.util.UUID;
 import net.java21.fourcut.content.support.CursorPage;
 import net.java21.fourcut.content.web.HeaderNames;
 import org.springframework.http.ResponseEntity;
@@ -25,20 +24,20 @@ public class ComicController {
 
   @GetMapping
   public CursorPage<ComicView> inbox(
-      @RequestHeader(HeaderNames.USER_ID) UUID userId,
+      @RequestHeader(HeaderNames.USER_ID) String userId,
       @RequestParam(required = false) String cursor,
       @RequestParam(required = false) Integer size) {
     return comics.inbox(userId, cursor, size);
   }
 
   @GetMapping("/{id}")
-  public ComicView get(@RequestHeader(HeaderNames.USER_ID) UUID userId, @PathVariable UUID id) {
+  public ComicView get(@RequestHeader(HeaderNames.USER_ID) String userId, @PathVariable String id) {
     return comics.get(userId, id);
   }
 
   @DeleteMapping("/{id}")
   public ResponseEntity<Void> delete(
-      @RequestHeader(HeaderNames.USER_ID) UUID userId, @PathVariable UUID id) {
+      @RequestHeader(HeaderNames.USER_ID) String userId, @PathVariable String id) {
     comics.delete(userId, id);
     return ResponseEntity.noContent().build();
   }
@@ -46,8 +45,8 @@ public class ComicController {
   /** 만화함 이미지 (올리기 전 미리보기). web만 쓴다. */
   @GetMapping("/{id}/image")
   public ImageUrl image(
-      @RequestHeader(HeaderNames.USER_ID) UUID userId,
-      @PathVariable UUID id,
+      @RequestHeader(HeaderNames.USER_ID) String userId,
+      @PathVariable String id,
       @RequestParam(required = false) String size) {
     return comics.image(userId, id, ImageSize.parse(size));
   }

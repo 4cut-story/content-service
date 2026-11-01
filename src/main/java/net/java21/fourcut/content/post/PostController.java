@@ -3,7 +3,6 @@ package net.java21.fourcut.content.post;
 import jakarta.validation.Valid;
 import java.util.Locale;
 import java.util.Map;
-import java.util.UUID;
 import net.java21.fourcut.content.comic.ImageSize;
 import net.java21.fourcut.content.comic.ImageUrl;
 import net.java21.fourcut.content.error.ApiException;
@@ -34,9 +33,9 @@ public class PostController {
   }
 
   @PostMapping("/api/v1/posts")
-  public ResponseEntity<Map<String, UUID>> publish(
-      @RequestHeader(HeaderNames.USER_ID) UUID userId, @Valid @RequestBody PublishRequest body) {
-    UUID postId;
+  public ResponseEntity<Map<String, String>> publish(
+      @RequestHeader(HeaderNames.USER_ID) String userId, @Valid @RequestBody PublishRequest body) {
+    String postId;
     try {
       postId = posts.publish(userId, body);
     } catch (DataIntegrityViolationException e) {
@@ -48,21 +47,22 @@ public class PostController {
 
   @DeleteMapping("/api/v1/posts/{id}")
   public ResponseEntity<Void> remove(
-      @RequestHeader(HeaderNames.USER_ID) UUID userId,
-      @PathVariable UUID id,
+      @RequestHeader(HeaderNames.USER_ID) String userId,
+      @PathVariable String id,
       @RequestParam String mode) {
     posts.remove(userId, id, parseMode(mode));
     return ResponseEntity.noContent().build();
   }
 
   @GetMapping("/api/v1/posts/{id}")
-  public PostView detail(@RequestHeader(HeaderNames.USER_ID) UUID userId, @PathVariable UUID id) {
+  public PostView detail(
+      @RequestHeader(HeaderNames.USER_ID) String userId, @PathVariable String id) {
     return posts.detail(userId, id);
   }
 
   @GetMapping("/api/v1/feed")
   public CursorPage<PostView> feed(
-      @RequestHeader(HeaderNames.USER_ID) UUID userId,
+      @RequestHeader(HeaderNames.USER_ID) String userId,
       @RequestParam(required = false) String cursor,
       @RequestParam(required = false) Integer size) {
     return posts.feed(userId, cursor, size);
@@ -71,8 +71,8 @@ public class PostController {
   /** 프로필 게시물. 보는 사람 기준 공개 범위를 적용한다. */
   @GetMapping("/api/v1/posts")
   public CursorPage<PostView> byAuthor(
-      @RequestHeader(HeaderNames.USER_ID) UUID userId,
-      @RequestParam UUID authorId,
+      @RequestHeader(HeaderNames.USER_ID) String userId,
+      @RequestParam String authorId,
       @RequestParam(required = false) String cursor,
       @RequestParam(required = false) Integer size) {
     return posts.byAuthor(userId, authorId, cursor, size);
@@ -81,15 +81,15 @@ public class PostController {
   /** 게시물 이미지의 사전 서명 주소 (web만 쓴다). */
   @GetMapping("/api/v1/posts/{id}/image")
   public ImageUrl image(
-      @RequestHeader(HeaderNames.USER_ID) UUID userId,
-      @PathVariable UUID id,
+      @RequestHeader(HeaderNames.USER_ID) String userId,
+      @PathVariable String id,
       @RequestParam(required = false) String size) {
     return posts.image(userId, id, ImageSize.parse(size));
   }
 
   @PutMapping("/api/v1/posts/{id}/like")
   public ResponseEntity<Void> like(
-      @RequestHeader(HeaderNames.USER_ID) UUID userId, @PathVariable UUID id) {
+      @RequestHeader(HeaderNames.USER_ID) String userId, @PathVariable String id) {
     try {
       posts.like(userId, id);
     } catch (DataIntegrityViolationException e) {
@@ -101,7 +101,7 @@ public class PostController {
 
   @DeleteMapping("/api/v1/posts/{id}/like")
   public ResponseEntity<Void> unlike(
-      @RequestHeader(HeaderNames.USER_ID) UUID userId, @PathVariable UUID id) {
+      @RequestHeader(HeaderNames.USER_ID) String userId, @PathVariable String id) {
     posts.unlike(userId, id);
     return ResponseEntity.noContent().build();
   }

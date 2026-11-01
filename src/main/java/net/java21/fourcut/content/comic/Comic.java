@@ -5,8 +5,8 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Table;
-import java.util.UUID;
 import net.java21.fourcut.content.support.BaseEntity;
+import net.java21.fourcut.content.support.PublicId;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
@@ -21,11 +21,17 @@ public class Comic extends BaseEntity {
     POSTED
   }
 
-  @Column(name = "owner_id", nullable = false)
-  private UUID ownerId;
+  /** 밖에 보이는 만화 ID. */
+  @Column(name = "public_id", nullable = false, updatable = false, length = PublicId.LENGTH)
+  private String publicId = PublicId.generate();
 
-  @Column(name = "conversation_id", nullable = false)
-  private UUID conversationId;
+  /** 소유자의 공개 ID (auth). */
+  @Column(name = "owner_id", nullable = false, length = PublicId.LENGTH)
+  private String ownerId;
+
+  /** 대화의 공개 ID (conversation). */
+  @Column(name = "conversation_id", nullable = false, length = PublicId.LENGTH)
+  private String conversationId;
 
   @Column(nullable = false, length = 100)
   private String title;
@@ -53,8 +59,8 @@ public class Comic extends BaseEntity {
   }
 
   public Comic(
-      UUID ownerId,
-      UUID conversationId,
+      String ownerId,
+      String conversationId,
       String title,
       String imageKey,
       String thumbKey,
@@ -69,11 +75,15 @@ public class Comic extends BaseEntity {
     this.nameWarnings = nameWarnings;
   }
 
-  public UUID getOwnerId() {
+  public String getPublicId() {
+    return publicId;
+  }
+
+  public String getOwnerId() {
     return ownerId;
   }
 
-  public UUID getConversationId() {
+  public String getConversationId() {
     return conversationId;
   }
 

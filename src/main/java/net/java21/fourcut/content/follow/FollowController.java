@@ -1,6 +1,5 @@
 package net.java21.fourcut.content.follow;
 
-import java.util.UUID;
 import net.java21.fourcut.content.web.HeaderNames;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.ResponseEntity;
@@ -23,7 +22,7 @@ public class FollowController {
 
   @PutMapping("/api/v1/follows/{userId}")
   public ResponseEntity<Void> follow(
-      @RequestHeader(HeaderNames.USER_ID) UUID viewer, @PathVariable UUID userId) {
+      @RequestHeader(HeaderNames.USER_ID) String viewer, @PathVariable String userId) {
     try {
       follows.follow(viewer, userId);
     } catch (DataIntegrityViolationException e) {
@@ -35,14 +34,14 @@ public class FollowController {
 
   @DeleteMapping("/api/v1/follows/{userId}")
   public ResponseEntity<Void> unfollow(
-      @RequestHeader(HeaderNames.USER_ID) UUID viewer, @PathVariable UUID userId) {
+      @RequestHeader(HeaderNames.USER_ID) String viewer, @PathVariable String userId) {
     follows.unfollow(viewer, userId);
     return ResponseEntity.noContent().build();
   }
 
   @GetMapping("/api/v1/follows/{userId}/stats")
   public FollowStats stats(
-      @RequestHeader(HeaderNames.USER_ID) UUID viewer, @PathVariable UUID userId) {
+      @RequestHeader(HeaderNames.USER_ID) String viewer, @PathVariable String userId) {
     return follows.stats(viewer, userId);
   }
 }
