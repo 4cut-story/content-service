@@ -479,6 +479,40 @@ class ContentFlowIntegrationTest {
   }
 
   @Test
+  @DisplayName("사용자 페이지·포털: 로그인하지 않으면 전체 공개 게시물만 보이고, 작성자는 모두 본다")
+  void anonymousSeesOnlyPublicPosts() throws Exception {
+    String alice = PublicId.generate();
+    String publicConversation = PublicId.generate();
+    String publicPost = publish(alice, register(alice, publicConversation), "PUBLIC");
+    String followersPost = publish(alice, register(alice, PublicId.generate()), "FOLLOWERS");
+
+    perform(get("/api/v1/posts").param("authorId", alice))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.items.length()").value(1))
+        .andExpect(jsonPath("$.items[0].postId").value(publicPost))
+        .andExpect(jsonPath("$.items[0].likedByMe").value(false));
+    perform(as(get("/api/v1/posts").param("authorId", alice), alice))
+        .andExpect(jsonPath("$.items.length()").value(2));
+
+    perform(get("/api/v1/feed").param("size", "50"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.items[?(@.postId == '%s')]".formatted(publicPost)).exists())
+        .andExpect(jsonPath("$.items[?(@.postId == '%s')]".formatted(followersPost)).doesNotExist())
+        .andExpect(jsonPath("$.items[?(@.visibility == 'FOLLOWERS')]").doesNotExist());
+
+    perform(get("/api/v1/posts/{id}", publicPost)).andExpect(status().isOk());
+    perform(get("/api/v1/posts/{id}", followersPost)).andExpect(status().isNotFound());
+    perform(get("/api/v1/posts/{id}/image", publicPost).param("size", "thumb"))
+        .andExpect(status().isOk());
+    perform(get("/api/v1/posts/{id}/image", followersPost)).andExpect(status().isNotFound());
+    perform(get("/api/v1/posts/{id}/comments", publicPost)).andExpect(status().isOk());
+    perform(get("/api/v1/posts/{id}/comments", followersPost)).andExpect(status().isNotFound());
+    perform(get("/api/v1/follows/{userId}/stats", alice))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.followedByMe").value(false));
+  }
+
+  @Test
   @DisplayName("FR-010~011: 팔로우, 팔로워 공개 게시물")
   void followsAndVisibility() throws Exception {
     String alice = PublicId.generate();

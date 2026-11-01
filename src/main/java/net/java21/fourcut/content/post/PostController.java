@@ -9,6 +9,7 @@ import net.java21.fourcut.content.error.ApiException;
 import net.java21.fourcut.content.error.ErrorCode;
 import net.java21.fourcut.content.support.CursorPage;
 import net.java21.fourcut.content.web.HeaderNames;
+import net.java21.fourcut.content.web.Viewer;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -56,35 +57,36 @@ public class PostController {
 
   @GetMapping("/api/v1/posts/{id}")
   public PostView detail(
-      @RequestHeader(HeaderNames.USER_ID) String userId, @PathVariable String id) {
-    return posts.detail(userId, id);
+      @RequestHeader(value = HeaderNames.USER_ID, required = false) String userId,
+      @PathVariable String id) {
+    return posts.detail(Viewer.of(userId), id);
   }
 
   @GetMapping("/api/v1/feed")
   public CursorPage<PostView> feed(
-      @RequestHeader(HeaderNames.USER_ID) String userId,
+      @RequestHeader(value = HeaderNames.USER_ID, required = false) String userId,
       @RequestParam(required = false) String cursor,
       @RequestParam(required = false) Integer size) {
-    return posts.feed(userId, cursor, size);
+    return posts.feed(Viewer.of(userId), cursor, size);
   }
 
-  /** 프로필 게시물. 보는 사람 기준 공개 범위를 적용한다. */
+  /** 프로필 게시물. 보는 사람 기준 공개 범위를 적용한다 (로그인하지 않았으면 전체 공개만). */
   @GetMapping("/api/v1/posts")
   public CursorPage<PostView> byAuthor(
-      @RequestHeader(HeaderNames.USER_ID) String userId,
+      @RequestHeader(value = HeaderNames.USER_ID, required = false) String userId,
       @RequestParam String authorId,
       @RequestParam(required = false) String cursor,
       @RequestParam(required = false) Integer size) {
-    return posts.byAuthor(userId, authorId, cursor, size);
+    return posts.byAuthor(Viewer.of(userId), authorId, cursor, size);
   }
 
   /** 게시물 이미지의 사전 서명 주소 (web만 쓴다). */
   @GetMapping("/api/v1/posts/{id}/image")
   public ImageUrl image(
-      @RequestHeader(HeaderNames.USER_ID) String userId,
+      @RequestHeader(value = HeaderNames.USER_ID, required = false) String userId,
       @PathVariable String id,
       @RequestParam(required = false) String size) {
-    return posts.image(userId, id, ImageSize.parse(size));
+    return posts.image(Viewer.of(userId), id, ImageSize.parse(size));
   }
 
   @PutMapping("/api/v1/posts/{id}/like")
