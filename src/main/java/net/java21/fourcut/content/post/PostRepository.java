@@ -40,6 +40,13 @@ public interface PostRepository extends JpaRepository<Post, Long> {
           + " order by p.publishedAt desc, p.id desc")
   List<Post> byAuthor(String viewer, String author, Instant at, long id, Limit limit);
 
+  @Query("select count(p) from Post p where p.authorId = :author and " + VISIBLE)
+  long countByAuthor(String viewer, String author);
+
+  @Query(
+      "select coalesce(sum(p.likeCount), 0) from Post p where p.authorId = :author and " + VISIBLE)
+  long likesByAuthor(String viewer, String author);
+
   @Query("select count(p) > 0 from Post p where p.id = :postId and " + VISIBLE)
   boolean visibleTo(Long postId, String viewer);
 

@@ -510,7 +510,8 @@ class ContentFlowIntegrationTest {
     perform(get("/api/v1/posts/{id}/comments", followersPost)).andExpect(status().isNotFound());
     perform(get("/api/v1/follows/{userId}/stats", alice))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.followedByMe").value(false));
+        .andExpect(jsonPath("$.followedByMe").value(false))
+        .andExpect(jsonPath("$.posts").value(1));
   }
 
   @Test
@@ -539,6 +540,9 @@ class ContentFlowIntegrationTest {
         .andExpect(jsonPath("$.followers").value(1))
         .andExpect(jsonPath("$.following").value(0))
         .andExpect(jsonPath("$.followedByMe").value(true))
+        .andExpect(jsonPath("$.posts").value(1))
+        .andExpect(jsonPath("$.likes").value(0))
+        .andExpect(jsonPath("$.comics").doesNotExist())
         .andDo(
             doc(
                 "follow-stats",
@@ -546,7 +550,16 @@ class ContentFlowIntegrationTest {
                 responseFields(
                     fieldWithPath("followers").description("팔로워 수"),
                     fieldWithPath("following").description("팔로잉 수"),
-                    fieldWithPath("followedByMe").description("내가 팔로우하는지"))));
+                    fieldWithPath("followedByMe").description("내가 팔로우하는지"),
+                    fieldWithPath("posts").description("내가 볼 수 있는 게시물 수"),
+                    fieldWithPath("likes").description("그 게시물들이 받은 좋아요 합계"),
+                    fieldWithPath("comics")
+                        .description("만든 4컷 전체 수. 본인이 볼 때만 온다")
+                        .optional()
+                        .type(JsonFieldType.NUMBER))));
+    perform(as(get("/api/v1/follows/{userId}/stats", alice), alice))
+        .andExpect(jsonPath("$.posts").value(1))
+        .andExpect(jsonPath("$.comics").value(1));
 
     perform(as(put("/api/v1/follows/{userId}", bob), bob))
         .andExpect(status().isBadRequest())
