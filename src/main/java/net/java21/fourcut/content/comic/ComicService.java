@@ -26,6 +26,8 @@ public class ComicService {
 
   private static final TypeReference<List<String>> STRINGS = new TypeReference<>() {};
 
+  private static final TypeReference<List<CastMember>> CAST = new TypeReference<>() {};
+
   private final ComicRepository comics;
   private final PostRepository posts;
   private final ObjectStorage storage;
@@ -48,16 +50,20 @@ public class ComicService {
         .orElseGet(
             () -> {
               List<String> warnings = r.nameWarnings() == null ? List.of() : r.nameWarnings();
-              Comic saved =
-                  comics.save(
-                      new Comic(
-                          r.ownerId(),
-                          r.conversationId(),
-                          r.title(),
-                          r.imageKey(),
-                          r.thumbKey(),
-                          r.language(),
-                          json.writeValueAsString(warnings)));
+              Comic comic =
+                  new Comic(
+                      r.ownerId(),
+                      r.conversationId(),
+                      r.title(),
+                      r.imageKey(),
+                      r.thumbKey(),
+                      r.language(),
+                      json.writeValueAsString(warnings));
+              comic.describe(
+                  r.cast() == null ? null : json.writeValueAsString(r.cast()),
+                  r.concept(),
+                  r.dialect());
+              Comic saved = comics.save(comic);
               return new RegisteredComic(saved.getPublicId(), true);
             });
   }
@@ -129,8 +135,20 @@ public class ComicService {
                     warnings(c.getNameWarnings()),
                     c.getState(),
                     postIds.get(c.getId()),
-                    c.getCreatedAt()))
+                    c.getCreatedAt(),
+                    castOf(c),
+                    c.getConcept(),
+                    c.getDialect()))
         .toList();
+  }
+
+  /** 만화의 등장인물 소개. 예전 만화는 빈 목록. */
+  public List<CastMember> castOf(Comic comic) {
+    String raw = comic.getCastMembers();
+    if (raw == null || raw.isBlank()) {
+      return List.of();
+    }
+    return json.readValue(raw, CAST);
   }
 
   private List<String> warnings(String raw) {

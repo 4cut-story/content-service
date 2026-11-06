@@ -182,7 +182,10 @@ public class PostService {
                   p.getPublishedAt(),
                   p.getLikeCount(),
                   p.getCommentCount(),
-                  liked.contains(p.getId()));
+                  liked.contains(p.getId()),
+                  comic == null ? List.of() : comicService.castOf(comic),
+                  comic == null ? null : comic.getConcept(),
+                  comic == null ? null : comic.getDialect());
             })
         .toList();
   }
