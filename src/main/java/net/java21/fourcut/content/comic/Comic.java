@@ -50,6 +50,19 @@ public class Comic extends BaseEntity {
   @Column(name = "name_warnings", columnDefinition = "json")
   private String nameWarnings;
 
+  /** 등장인물 소개 (JSON 배열: role, name, lookId). 예전 만화는 null. */
+  @JdbcTypeCode(SqlTypes.JSON)
+  @Column(name = "cast_members", columnDefinition = "json")
+  private String castMembers;
+
+  /** 그린 그림체. 예전 만화는 null. */
+  @Column(length = 20)
+  private String concept;
+
+  /** 대사 사투리. 예전 만화는 null. */
+  @Column(length = 20)
+  private String dialect;
+
   @Enumerated(EnumType.STRING)
   @Column(nullable = false, length = 20)
   private State state = State.IN_INBOX;
@@ -73,6 +86,25 @@ public class Comic extends BaseEntity {
     this.thumbKey = thumbKey;
     this.language = language;
     this.nameWarnings = nameWarnings;
+  }
+
+  /** 등장인물 소개와 만든 옵션을 남긴다. */
+  public void describe(String castMembers, String concept, String dialect) {
+    this.castMembers = castMembers;
+    this.concept = concept;
+    this.dialect = dialect;
+  }
+
+  public String getCastMembers() {
+    return castMembers;
+  }
+
+  public String getConcept() {
+    return concept;
+  }
+
+  public String getDialect() {
+    return dialect;
   }
 
   public String getPublicId() {

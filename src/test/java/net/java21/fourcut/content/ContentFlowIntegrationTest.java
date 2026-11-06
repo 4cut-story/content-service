@@ -73,7 +73,18 @@ class ContentFlowIntegrationTest {
         .type(JsonFieldType.STRING)
         .optional()
         .description("올린 게시물 ID. 만화함에만 있으면 null"),
-    fieldWithPath("createdAt").description("만든 시각")
+    fieldWithPath("createdAt").description("만든 시각"),
+    subsectionWithPath("cast")
+        .description(
+            "만화 아래 등장인물 소개: role(호칭), name(캐릭터 이름), lookId(캐릭터 모습 ID, 없으면 null). 예전 만화는 빈 목록"),
+    fieldWithPath("concept")
+        .type(JsonFieldType.STRING)
+        .optional()
+        .description("그린 그림체 (DAILY, WATERCOLOR…). 예전 만화는 null"),
+    fieldWithPath("dialect")
+        .type(JsonFieldType.STRING)
+        .optional()
+        .description("대사 사투리 (NONE, GYEONGSANG…). 예전 만화는 null")
   };
 
   private static final FieldDescriptor[] POST = {
@@ -86,7 +97,18 @@ class ContentFlowIntegrationTest {
     fieldWithPath("publishedAt").description("올린 시각 (피드 정렬 기준)"),
     fieldWithPath("likeCount").description("좋아요 수"),
     fieldWithPath("commentCount").description("댓글 수"),
-    fieldWithPath("likedByMe").description("내가 좋아요를 눌렀는지")
+    fieldWithPath("likedByMe").description("내가 좋아요를 눌렀는지"),
+    subsectionWithPath("cast")
+        .description(
+            "만화 아래 등장인물 소개: role(호칭), name(캐릭터 이름), lookId(캐릭터 모습 ID, 없으면 null). 예전 만화는 빈 목록"),
+    fieldWithPath("concept")
+        .type(JsonFieldType.STRING)
+        .optional()
+        .description("그린 그림체 (DAILY, WATERCOLOR…). 예전 만화는 null"),
+    fieldWithPath("dialect")
+        .type(JsonFieldType.STRING)
+        .optional()
+        .description("대사 사투리 (NONE, GYEONGSANG…). 예전 만화는 null")
   };
 
   private static final FieldDescriptor[] COMMENT = {
@@ -137,7 +159,9 @@ class ContentFlowIntegrationTest {
   private static String registerBody(String owner, String conversation) {
     return """
         {"ownerId":"%s","conversationId":"%s","title":"편의점 앞에서","imageKey":"comics/%s/full.png",
-         "thumbKey":"comics/%s/thumb.png","language":"ko","nameWarnings":["민지"]}
+         "thumbKey":"comics/%s/thumb.png","language":"ko","nameWarnings":["민지"],
+         "cast":[{"role":"할머니","name":"하늘","lookId":"aaaaaaaaaaaaaaaaaaaaa"},{"role":"손녀","name":"도윤","lookId":null}],
+         "concept":"WATERCOLOR","dialect":"GYEONGSANG"}
         """
         .formatted(owner, conversation, conversation, conversation);
   }
@@ -202,7 +226,15 @@ class ContentFlowIntegrationTest {
                             fieldWithPath("imageKey").description("원본 이미지 객체 키"),
                             fieldWithPath("thumbKey").description("썸네일 객체 키"),
                             fieldWithPath("language").description("ko 또는 en"),
-                            fieldWithPath("nameWarnings").description("실명 의심 단어 목록")),
+                            fieldWithPath("nameWarnings").description("실명 의심 단어 목록"),
+                            fieldWithPath("cast[].role").description("등장인물 호칭 (할머니, 손녀…)"),
+                            fieldWithPath("cast[].name").description("캐릭터 이름"),
+                            fieldWithPath("cast[].lookId")
+                                .type(JsonFieldType.STRING)
+                                .optional()
+                                .description("캐릭터 모습 ID. 캐릭터를 못 찾았으면 null"),
+                            fieldWithPath("concept").description("그린 그림체 (DAILY, WATERCOLOR…)"),
+                            fieldWithPath("dialect").description("대사 사투리 (NONE, GYEONGSANG…)")),
                         responseFields(fieldWithPath("comicId").description("만화 ID"))))
                 .andReturn()
                 .getResponse()
@@ -336,6 +368,11 @@ class ContentFlowIntegrationTest {
     perform(as(get("/api/v1/posts/{id}", postId), bob))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.authorId").value(alice.toString()))
+        .andExpect(jsonPath("$.cast[0].role").value("할머니"))
+        .andExpect(jsonPath("$.cast[0].lookId").value("aaaaaaaaaaaaaaaaaaaaa"))
+        .andExpect(jsonPath("$.cast[1].name").value("도윤"))
+        .andExpect(jsonPath("$.concept").value("WATERCOLOR"))
+        .andExpect(jsonPath("$.dialect").value("GYEONGSANG"))
         .andDo(
             doc(
                 "post",

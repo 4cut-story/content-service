@@ -10,6 +10,9 @@ import java.util.List;
  * @param conversationId 대화 공개 ID
  * @param nameWarnings 대사에 남은 실명 의심 단어. 올리기 전에 보여 준다
  * @param postId 올린 게시물 공개 ID. 만화함에만 있으면 null
+ * @param cast 등장인물 소개. 예전 만화는 빈 목록
+ * @param concept 그린 그림체. 예전 만화는 null
+ * @param dialect 대사 사투리. 예전 만화는 null
  */
 public record ComicView(
     String id,
@@ -19,4 +22,7 @@ public record ComicView(
     List<String> nameWarnings,
     Comic.State state,
     String postId,
-    Instant createdAt) {}
+    Instant createdAt,
+    List<CastMember> cast,
+    String concept,
+    String dialect) {}
