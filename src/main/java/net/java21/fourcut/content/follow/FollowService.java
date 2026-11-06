@@ -1,19 +1,25 @@
 package net.java21.fourcut.content.follow;
 
+import net.java21.fourcut.content.comic.ComicRepository;
 import net.java21.fourcut.content.error.ApiException;
 import net.java21.fourcut.content.error.ErrorCode;
+import net.java21.fourcut.content.post.PostRepository;
 import net.java21.fourcut.content.support.PublicId;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/** 팔로우 (승인 없이 바로, 멱등). */
+/** 팔로우 (승인 없이 바로, 멱등)와 프로필 숫자. */
 @Service
 public class FollowService {
 
   private final FollowRepository follows;
+  private final PostRepository posts;
+  private final ComicRepository comics;
 
-  public FollowService(FollowRepository follows) {
+  public FollowService(FollowRepository follows, PostRepository posts, ComicRepository comics) {
     this.follows = follows;
+    this.posts = posts;
+    this.comics = comics;
   }
 
   @Transactional
@@ -39,7 +45,10 @@ public class FollowService {
     return new FollowStats(
         follows.countByFolloweeId(user),
         follows.countByFollowerId(user),
-        follows.existsByFollowerIdAndFolloweeId(viewer, user));
+        follows.existsByFollowerIdAndFolloweeId(viewer, user),
+        posts.countByAuthor(viewer, user),
+        posts.likesByAuthor(viewer, user),
+        viewer.equals(user) ? comics.countByOwnerId(user) : null);
   }
 
   /** 사용자 공개 ID 형식이 아니면 없는 사용자로 본다(404). */

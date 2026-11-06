@@ -13,6 +13,8 @@ public interface ComicRepository extends JpaRepository<Comic, Long> {
 
   List<Comic> findByOwnerId(String ownerId);
 
+  long countByOwnerId(String ownerId);
+
   Optional<Comic> findByPublicId(String publicId);
 
   /** 내 만화함, 최신순. */
