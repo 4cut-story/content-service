@@ -755,6 +755,33 @@ class ContentFlowIntegrationTest {
     perform(as(get("/api/v1/comics/{id}", comicId), alice))
         .andExpect(jsonPath("$.production.totalMs").value(120000));
 
+    // 주인은 만화 ID로 제작 정보를 바꾼다 (파이프라인 밖에서 그린 시험 만화)
+    perform(
+            as(put("/api/v1/comics/{id}/production", comicId), alice)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {"version":1,"totalMs":7000,"steps":[{"step":"DRAW","ms":7000,"attempts":1,"jobs":[]}]}
+                    """))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.production.totalMs").value(7000))
+        .andDo(
+            doc(
+                "comics-production",
+                requestHeaders(USER),
+                pathParameters(parameterWithName("id").description("만화 ID")),
+                responseFields(COMIC)));
+    perform(
+            as(put("/api/v1/comics/{id}/production", comicId), PublicId.generate())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{}"))
+        .andExpect(status().isNotFound());
+    perform(
+            as(put("/api/v1/comics/{id}/production", comicId), alice)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("\"x\""))
+        .andExpect(status().isBadRequest());
+
     // 객체가 아니면 400, 없는 대화면 404
     perform(
             put("/internal/comics/by-conversation/{conversationId}/production", conversation)
