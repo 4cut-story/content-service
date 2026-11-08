@@ -46,8 +46,8 @@ public class ComicController {
   }
 
   /**
-   * 내 만화의 제작 정보를 바꾼다. 파이프라인 밖에서 그린 시험 만화처럼 서버가 모르는 모델·조건·시간·점수를 남길 때 쓴다. 형식은
-   * conversation-service 제작 정보(version 1)와 같다.
+   * 내 만화의 제작 정보를 바꾼다. 파이프라인 밖에서 그린 시험 만화처럼 서버가 모르는 모델·조건·시간·점수를 남길 때 쓴다. 형식은 conversation-service
+   * 제작 정보(version 1)와 같다.
    */
   @PutMapping("/{id}/production")
   public ComicView production(
