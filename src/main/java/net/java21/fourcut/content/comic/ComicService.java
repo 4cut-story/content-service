@@ -1,6 +1,7 @@
 package net.java21.fourcut.content.comic;
 
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -76,8 +77,12 @@ public class ComicService {
             thumbKey,
             r.language() == null ? "ko" : r.language(),
             "[]");
-    comic.describe(
-        r.cast() == null ? null : json.writeValueAsString(r.cast()), r.concept(), r.dialect());
+    // 사용자가 보낸 소개라 얼굴 그림 키는 받지 않는다 (다른 만화의 그림을 가리킬 수 있다)
+    List<CastMember> cast =
+        r.cast() == null
+            ? null
+            : r.cast().stream().map(m -> new CastMember(m.role(), m.name(), m.lookId())).toList();
+    comic.describe(cast == null ? null : json.writeValueAsString(cast), r.concept(), r.dialect());
     comic.recordProduction(productionJson(r.production()));
     return viewsOf(List.of(comics.save(comic))).get(0);
   }
@@ -129,22 +134,64 @@ public class ComicService {
     remove(owned(owner, comicId));
   }
 
-  /** 만화와 이미지를 지운다. 주인 확인은 부르는 쪽이 한다. */
+  /** 만화와 이미지(등장인물 얼굴 그림 포함)를 지운다. 주인 확인은 부르는 쪽이 한다. */
   @Transactional
   public void remove(Comic comic) {
-    storage.delete(List.of(comic.getImageKey(), comic.getThumbKey()));
+    storage.delete(imageKeys(comic));
     comics.delete(comic);
   }
 
+  /** 만화의 이미지 객체 키: 원본, 썸네일, 등장인물 얼굴 그림. */
+  public List<String> imageKeys(Comic comic) {
+    List<String> keys = new ArrayList<>(List.of(comic.getImageKey(), comic.getThumbKey()));
+    castOf(comic).stream().map(CastMember::portraitKey).filter(k -> k != null).forEach(keys::add);
+    return keys;
+  }
+
+  /**
+   * 만화함 이미지 주소.
+   *
+   * @param cast null이 아니면 그 순서(0부터) 등장인물의 얼굴 그림
+   */
   @Transactional(readOnly = true)
-  public ImageUrl image(String owner, String comicId, ImageSize size) {
-    return imageOf(owned(owner, comicId), size);
+  public ImageUrl image(String owner, String comicId, ImageSize size, Integer cast) {
+    Comic comic = owned(owner, comicId);
+    return cast == null ? imageOf(comic, size) : castImageOf(comic, cast);
   }
 
   /** 만화 이미지의 사전 서명 주소. */
   public ImageUrl imageOf(Comic comic, ImageSize size) {
-    return new ImageUrl(
-        storage.presignGet(size.keyOf(comic), IMAGE_URL_TTL), IMAGE_URL_TTL.toSeconds());
+    return presign(size.keyOf(comic));
+  }
+
+  /** 등장인물 얼굴 그림의 사전 서명 주소. 그 순서의 인물이 없거나 얼굴 그림이 없으면 404. */
+  public ImageUrl castImageOf(Comic comic, int index) {
+    List<CastMember> cast = castOf(comic);
+    if (index < 0 || index >= cast.size() || cast.get(index).portraitKey() == null) {
+      throw ApiException.notFound();
+    }
+    return presign(cast.get(index).portraitKey());
+  }
+
+  private ImageUrl presign(String key) {
+    return new ImageUrl(storage.presignGet(key, IMAGE_URL_TTL), IMAGE_URL_TTL.toSeconds());
+  }
+
+  /**
+   * 대화로 찾은 만화의 등장인물 소개를 바꾼다 (내부). 예전 만화에 얼굴 그림을 채울 때 쓴다.
+   *
+   * @return 만화가 없으면 false
+   */
+  @Transactional
+  public boolean recordCast(String conversationId, List<CastMember> cast) {
+    return comics
+        .findByConversationId(conversationId)
+        .map(
+            c -> {
+              c.describe(json.writeValueAsString(cast), c.getConcept(), c.getDialect());
+              return true;
+            })
+        .orElse(false);
   }
 
   /** 주인의 만화. 없거나, 남의 것이거나, 형식이 틀린 ID면 404. */
@@ -178,7 +225,7 @@ public class ComicService {
                     c.getState(),
                     postIds.get(c.getId()),
                     c.getCreatedAt(),
-                    castOf(c),
+                    castViewsOf(c),
                     c.getConcept(),
                     c.getDialect(),
                     productionOf(c)))
@@ -246,6 +293,11 @@ public class ComicService {
       return List.of();
     }
     return json.readValue(raw, CAST);
+  }
+
+  /** 밖으로 보이는 등장인물 소개 (저장소 키는 빼고 얼굴 그림이 있는지만). */
+  public List<CastView> castViewsOf(Comic comic) {
+    return castOf(comic).stream().map(CastView::of).toList();
   }
 
   private List<String> warnings(String raw) {

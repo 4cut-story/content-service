@@ -68,12 +68,13 @@ public class ComicController {
     return comics.replaceProduction(userId, id, production);
   }
 
-  /** 만화함 이미지 (올리기 전 미리보기). web만 쓴다. */
+  /** 만화함 이미지 (올리기 전 미리보기). web만 쓴다. cast가 있으면 그 순서(0부터) 등장인물의 얼굴 그림. */
   @GetMapping("/{id}/image")
   public ImageUrl image(
       @RequestHeader(HeaderNames.USER_ID) String userId,
       @PathVariable String id,
-      @RequestParam(required = false) String size) {
-    return comics.image(userId, id, ImageSize.parse(size));
+      @RequestParam(required = false) String size,
+      @RequestParam(required = false) Integer cast) {
+    return comics.image(userId, id, ImageSize.parse(size), cast);
   }
 }

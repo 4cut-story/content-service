@@ -25,7 +25,7 @@ public record ComicView(
     Comic.State state,
     String postId,
     Instant createdAt,
-    List<CastMember> cast,
+    List<CastView> cast,
     String concept,
     String dialect,
     JsonNode production) {}

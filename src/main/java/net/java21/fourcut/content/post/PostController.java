@@ -80,13 +80,14 @@ public class PostController {
     return posts.byAuthor(Viewer.of(userId), authorId, cursor, size);
   }
 
-  /** 게시물 이미지의 사전 서명 주소 (web만 쓴다). */
+  /** 게시물 이미지의 사전 서명 주소 (web만 쓴다). cast가 있으면 그 순서(0부터) 등장인물의 얼굴 그림. */
   @GetMapping("/api/v1/posts/{id}/image")
   public ImageUrl image(
       @RequestHeader(value = HeaderNames.USER_ID, required = false) String userId,
       @PathVariable String id,
-      @RequestParam(required = false) String size) {
-    return posts.image(Viewer.of(userId), id, ImageSize.parse(size));
+      @RequestParam(required = false) String size,
+      @RequestParam(required = false) Integer cast) {
+    return posts.image(Viewer.of(userId), id, ImageSize.parse(size), cast);
   }
 
   @PutMapping("/api/v1/posts/{id}/like")
