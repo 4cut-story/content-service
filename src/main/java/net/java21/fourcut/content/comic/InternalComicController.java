@@ -1,11 +1,14 @@
 package net.java21.fourcut.content.comic;
 
 import jakarta.validation.Valid;
+import java.util.List;
 import java.util.Map;
 import net.java21.fourcut.content.error.ApiException;
+import net.java21.fourcut.content.error.ErrorCode;
 import net.java21.fourcut.content.support.PublicId;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -16,6 +19,7 @@ import tools.jackson.databind.JsonNode;
 
 /** conversation-service → content-service 내부 API. 게이트웨이는 이 경로를 밖으로 열지 않는다. */
 @RestController
+@Validated
 public class InternalComicController {
 
   private final ComicService comics;
@@ -49,4 +53,20 @@ public class InternalComicController {
     }
     return ResponseEntity.noContent().build();
   }
+
+  /** 대화로 찾은 만화의 등장인물 소개를 바꾼다. 예전 만화에 얼굴 그림을 채울 때 쓴다. 없는 대화면 404, 본문이 틀리면 400. */
+  @PutMapping("/internal/comics/by-conversation/{conversationId}/cast")
+  public ResponseEntity<Void> cast(
+      @PathVariable String conversationId, @RequestBody List<@Valid CastMember> cast) {
+    if (cast.size() > MAX_CAST) {
+      throw new ApiException(ErrorCode.VALIDATION_FAILED);
+    }
+    if (!PublicId.isValid(conversationId) || !comics.recordCast(conversationId, cast)) {
+      throw ApiException.notFound();
+    }
+    return ResponseEntity.noContent().build();
+  }
+
+  /** 등록 본문과 같은 등장인물 수 한도. */
+  static final int MAX_CAST = 10;
 }

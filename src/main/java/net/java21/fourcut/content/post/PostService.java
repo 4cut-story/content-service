@@ -112,10 +112,10 @@ public class PostService {
   }
 
   @Transactional(readOnly = true)
-  public ImageUrl image(String viewer, String postId, ImageSize size) {
+  public ImageUrl image(String viewer, String postId, ImageSize size, Integer cast) {
     Post post = visible(viewer, postId);
     Comic comic = comics.findById(post.getComicId()).orElseThrow(ApiException::notFound);
-    return comicService.imageOf(comic, size);
+    return cast == null ? comicService.imageOf(comic, size) : comicService.castImageOf(comic, cast);
   }
 
   /** 좋아요 (멱등). */
@@ -183,7 +183,7 @@ public class PostService {
                   p.getLikeCount(),
                   p.getCommentCount(),
                   liked.contains(p.getId()),
-                  comic == null ? List.of() : comicService.castOf(comic),
+                  comic == null ? List.of() : comicService.castViewsOf(comic),
                   comic == null ? null : comic.getConcept(),
                   comic == null ? null : comic.getDialect(),
                   comic == null ? null : comicService.productionOf(comic));

@@ -171,11 +171,11 @@ class ContentFlowIntegrationTest {
     return """
         {"ownerId":"%s","conversationId":"%s","title":"편의점 앞에서","imageKey":"comics/%s/full.png",
          "thumbKey":"comics/%s/thumb.png","language":"ko","nameWarnings":["민지"],
-         "cast":[{"role":"할머니","name":"하늘","lookId":"aaaaaaaaaaaaaaaaaaaaa"},{"role":"손녀","name":"도윤","lookId":null}],
+         "cast":[{"role":"할머니","name":"하늘","lookId":"aaaaaaaaaaaaaaaaaaaaa"},{"role":"손녀","name":"도윤","lookId":null,"portraitKey":"comics/%s/cast-1.png"}],
          "concept":"WATERCOLOR","dialect":"GYEONGSANG",
          "production":{"version":1,"totalMs":95000,"steps":[{"step":"DRAW","ms":41000}]}}
         """
-        .formatted(owner, conversation, conversation, conversation);
+        .formatted(owner, conversation, conversation, conversation, conversation);
   }
 
   private String publish(String author, String comicId, String visibility) throws Exception {
@@ -245,6 +245,12 @@ class ContentFlowIntegrationTest {
                                 .type(JsonFieldType.STRING)
                                 .optional()
                                 .description("캐릭터 모습 ID. 캐릭터를 못 찾았으면 null"),
+                            fieldWithPath("cast[].portraitKey")
+                                .type(JsonFieldType.STRING)
+                                .optional()
+                                .description(
+                                    "캐릭터를 못 찾은 인물의 얼굴 그림 객체 키 (만화 컷에서 잘라 낸 것, comics/<대화 ID>/cast-<순서>.png)."
+                                        + " 없으면 null"),
                             fieldWithPath("concept").description("그린 그림체 (DAILY, WATERCOLOR…)"),
                             fieldWithPath("dialect").description("대사 사투리 (NONE, GYEONGSANG…)"),
                             subsectionWithPath("production")
@@ -387,6 +393,9 @@ class ContentFlowIntegrationTest {
         .andExpect(jsonPath("$.cast[0].role").value("할머니"))
         .andExpect(jsonPath("$.cast[0].lookId").value("aaaaaaaaaaaaaaaaaaaaa"))
         .andExpect(jsonPath("$.cast[1].name").value("도윤"))
+        .andExpect(jsonPath("$.cast[0].portrait").value(false))
+        .andExpect(jsonPath("$.cast[1].portrait").value(true))
+        .andExpect(jsonPath("$.cast[1].portraitKey").doesNotExist())
         .andExpect(jsonPath("$.concept").value("WATERCOLOR"))
         .andExpect(jsonPath("$.dialect").value("GYEONGSANG"))
         .andExpect(jsonPath("$.production.steps[0].step").value("DRAW"))
@@ -427,6 +436,29 @@ class ContentFlowIntegrationTest {
 
     perform(as(get("/api/v1/posts/{id}/image", postId).param("size", "huge"), bob))
         .andExpect(status().isBadRequest());
+
+    // 캐릭터를 못 찾은 인물은 만화 컷에서 잘라 낸 얼굴 그림을 같은 주소에 cast=<순서>로 받는다
+    perform(as(get("/api/v1/posts/{id}/image", postId).param("cast", "1"), bob))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.url").value(org.hamcrest.Matchers.containsString("/cast-1.png")))
+        .andDo(
+            doc(
+                "post-cast-image",
+                pathParameters(parameterWithName("id").description("게시물 ID")),
+                queryParameters(
+                    parameterWithName("cast")
+                        .description("등장인물 순서(0부터). 그 인물의 얼굴 그림 (cast[].portrait가 true일 때만 있다)")),
+                responseFields(IMAGE)));
+    perform(as(get("/api/v1/comics/{id}/image", comicId).param("cast", "1"), alice))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.url").value(org.hamcrest.Matchers.containsString("/cast-1.png")));
+    // 캐릭터 그림이 있는 인물·없는 순서는 404
+    perform(as(get("/api/v1/posts/{id}/image", postId).param("cast", "0"), bob))
+        .andExpect(status().isNotFound());
+    perform(as(get("/api/v1/posts/{id}/image", postId).param("cast", "5"), bob))
+        .andExpect(status().isNotFound());
+    perform(as(get("/api/v1/comics/{id}/image", comicId).param("cast", "-1"), alice))
+        .andExpect(status().isNotFound());
   }
 
   @Test
@@ -656,10 +688,12 @@ class ContentFlowIntegrationTest {
     String again = publish(alice, comicId, "PUBLIC");
     putObject("comics/" + conversation + "/full.png");
     putObject("comics/" + conversation + "/thumb.png");
+    putObject("comics/" + conversation + "/cast-1.png");
     perform(as(delete("/api/v1/posts/{id}?mode=delete", again), alice))
         .andExpect(status().isNoContent());
     assertThat(comics.findByPublicId(comicId)).isEmpty();
     assertThat(objectExists("comics/" + conversation + "/full.png")).isFalse();
+    assertThat(objectExists("comics/" + conversation + "/cast-1.png")).isFalse();
 
     String other = register(alice, PublicId.generate());
     perform(as(delete("/api/v1/comics/{id}", other), alice))
@@ -677,6 +711,7 @@ class ContentFlowIntegrationTest {
     String alicePost = publish(alice, register(alice, conversation), "PUBLIC");
     String bobPost = publish(bob, register(bob, PublicId.generate()), "PUBLIC");
     putObject("comics/" + conversation + "/full.png");
+    putObject("comics/" + conversation + "/cast-1.png");
     perform(as(put("/api/v1/posts/{id}/like", bobPost), alice));
     perform(
         as(post("/api/v1/posts/{postId}/comments", bobPost), alice)
@@ -696,6 +731,7 @@ class ContentFlowIntegrationTest {
     assertThat(posts.findByPublicId(alicePost)).isEmpty();
     assertThat(comics.findByOwnerId(alice)).isEmpty();
     assertThat(objectExists("comics/" + conversation + "/full.png")).isFalse();
+    assertThat(objectExists("comics/" + conversation + "/cast-1.png")).isFalse();
     perform(as(get("/api/v1/posts/{id}", bobPost), bob))
         .andExpect(jsonPath("$.likeCount").value(0))
         .andExpect(jsonPath("$.commentCount").value(0));
@@ -809,7 +845,7 @@ class ContentFlowIntegrationTest {
   private static String importBody(String image) {
     return """
         {"title":"[회차 29 · dev NF4] 비 오는 교문","image":"%s",
-         "cast":[{"role":"남자","name":"하늘","lookId":null}],
+         "cast":[{"role":"남자","name":"하늘","lookId":null,"portraitKey":"comics/other/cast-0.png"}],
          "production":{"version":1,"round":29,"variant":"dev-nf4","totalMs":210000}}
         """
         .formatted(image);
@@ -828,6 +864,8 @@ class ContentFlowIntegrationTest {
             .andExpect(jsonPath("$.language").value("ko"))
             .andExpect(jsonPath("$.state").value("IN_INBOX"))
             .andExpect(jsonPath("$.cast[0].name").value("하늘"))
+            // 사용자가 보낸 얼굴 그림 키는 받지 않는다
+            .andExpect(jsonPath("$.cast[0].portrait").value(false))
             .andExpect(jsonPath("$.production.variant").value("dev-nf4"))
             .andDo(
                 doc(
@@ -878,5 +916,66 @@ class ContentFlowIntegrationTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(importBody("@@@")))
         .andExpect(status().isBadRequest());
+  }
+
+  @Test
+  @DisplayName("REQ-018: 대화로 찾은 만화의 등장인물 소개를 바꿔 예전 만화에 얼굴 그림을 채운다")
+  void cast() throws Exception {
+    String alice = PublicId.generate();
+    String conversation = PublicId.generate();
+    String comicId = register(alice, conversation);
+
+    perform(
+            put("/internal/comics/by-conversation/{conversationId}/cast", conversation)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    [{"role":"할머니","name":"하늘","lookId":null,"portraitKey":"comics/%s/cast-0.png"},
+                     {"role":"손녀","name":"도윤","lookId":"aaaaaaaaaaaaaaaaaaaaa","portraitKey":null}]
+                    """
+                        .formatted(conversation)))
+        .andExpect(status().isNoContent())
+        .andDo(
+            doc(
+                "internal-comics-cast",
+                pathParameters(parameterWithName("conversationId").description("대화 ID")),
+                requestFields(
+                    fieldWithPath("[].role").description("등장인물 호칭"),
+                    fieldWithPath("[].name").description("캐릭터 이름 (못 찾았으면 가명)"),
+                    fieldWithPath("[].lookId")
+                        .type(JsonFieldType.STRING)
+                        .optional()
+                        .description("캐릭터 모습 ID. 없으면 null"),
+                    fieldWithPath("[].portraitKey")
+                        .type(JsonFieldType.STRING)
+                        .optional()
+                        .description("만화 컷에서 잘라 낸 얼굴 그림 객체 키. 없으면 null"))));
+    perform(as(get("/api/v1/comics/{id}", comicId), alice))
+        .andExpect(jsonPath("$.cast[0].portrait").value(true))
+        .andExpect(jsonPath("$.cast[1].portrait").value(false))
+        .andExpect(jsonPath("$.concept").value("WATERCOLOR"));
+    perform(as(get("/api/v1/comics/{id}/image", comicId).param("cast", "0"), alice))
+        .andExpect(jsonPath("$.url").value(org.hamcrest.Matchers.containsString("/cast-0.png")));
+
+    // 다른 폴더의 키, 너무 많은 인물은 400, 없는 대화는 404
+    perform(
+            put("/internal/comics/by-conversation/{conversationId}/cast", conversation)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("[{\"role\":\"a\",\"name\":\"b\",\"portraitKey\":\"secrets/x.png\"}]"))
+        .andExpect(status().isBadRequest());
+    String many =
+        "["
+            + String.join(",", java.util.Collections.nCopies(11, "{\"role\":\"a\",\"name\":\"b\"}"))
+            + "]";
+    perform(
+            put("/internal/comics/by-conversation/{conversationId}/cast", conversation)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(many))
+        .andExpect(status().isBadRequest());
+    perform(
+            put("/internal/comics/by-conversation/{conversationId}/cast", PublicId.generate())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("[]"))
+        .andExpect(status().isNotFound());
   }
 }

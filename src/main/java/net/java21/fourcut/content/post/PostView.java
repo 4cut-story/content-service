@@ -2,7 +2,7 @@ package net.java21.fourcut.content.post;
 
 import java.time.Instant;
 import java.util.List;
-import net.java21.fourcut.content.comic.CastMember;
+import net.java21.fourcut.content.comic.CastView;
 import tools.jackson.databind.JsonNode;
 
 /**
@@ -24,7 +24,7 @@ public record PostView(
     int likeCount,
     int commentCount,
     boolean likedByMe,
-    List<CastMember> cast,
+    List<CastView> cast,
     String concept,
     String dialect,
     JsonNode production) {}

@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 import net.java21.fourcut.content.comic.Comic;
 import net.java21.fourcut.content.comic.ComicRepository;
+import net.java21.fourcut.content.comic.ComicService;
 import net.java21.fourcut.content.comment.Comment;
 import net.java21.fourcut.content.comment.CommentRepository;
 import net.java21.fourcut.content.follow.FollowRepository;
@@ -24,6 +25,7 @@ public class UserDataService {
   private final CommentRepository comments;
   private final FollowRepository follows;
   private final ObjectStorage storage;
+  private final ComicService comicService;
 
   public UserDataService(
       ComicRepository comics,
@@ -31,7 +33,9 @@ public class UserDataService {
       PostLikeRepository likes,
       CommentRepository comments,
       FollowRepository follows,
-      ObjectStorage storage) {
+      ObjectStorage storage,
+      ComicService comicService) {
+    this.comicService = comicService;
     this.comics = comics;
     this.posts = posts;
     this.likes = likes;
@@ -45,8 +49,7 @@ public class UserDataService {
     List<Comic> owned = comics.findByOwnerId(userId);
     List<String> keys = new ArrayList<>();
     for (Comic c : owned) {
-      keys.add(c.getImageKey());
-      keys.add(c.getThumbKey());
+      keys.addAll(comicService.imageKeys(c));
     }
     // 이미지를 먼저 지운다. DB 삭제가 실패해도 다시 부르면 같은 키를 또 지우므로 안전하다
     storage.delete(keys);
