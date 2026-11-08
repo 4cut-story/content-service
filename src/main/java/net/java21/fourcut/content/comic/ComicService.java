@@ -173,6 +173,18 @@ public class ComicService {
         .orElse(false);
   }
 
+  /** 내 만화의 제작 정보를 바꾼다. 남의 만화면 404, 객체가 아니거나 너무 크면 400. */
+  @Transactional
+  public ComicView replaceProduction(String owner, String comicId, JsonNode production) {
+    String raw = productionJson(production);
+    if (raw == null) {
+      throw new ApiException(ErrorCode.VALIDATION_FAILED);
+    }
+    Comic comic = owned(owner, comicId);
+    comic.recordProduction(raw);
+    return viewsOf(List.of(comic)).get(0);
+  }
+
   /** 만화의 제작 정보. 예전 만화는 null. */
   public JsonNode productionOf(Comic comic) {
     String raw = comic.getProduction();

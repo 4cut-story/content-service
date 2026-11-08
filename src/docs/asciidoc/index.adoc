@@ -24,6 +24,12 @@ include::{snippets}/comic/http-request.adoc[]
 include::{snippets}/comic/http-response.adoc[]
 include::{snippets}/comic/response-fields.adoc[]
 
+=== 제작 정보 바꾸기
+내 만화의 제작 정보(단계별 모델·조건·걸린 시간)를 바꾼다. 파이프라인 밖에서 그린 시험 만화처럼 서버가 모르는 정보를 남길 때 쓴다. 형식은 conversation-service 제작 정보(version 1)와 같다. JSON 객체가 아니거나 32KB를 넘으면 400.
+
+include::{snippets}/comics-production/http-request.adoc[]
+include::{snippets}/comics-production/http-response.adoc[]
+
 === 만화 이미지 주소
 web 서버만 쓴다. 받은 주소로 이미지를 가져와 브라우저에 중계한다.
 
