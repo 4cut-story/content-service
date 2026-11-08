@@ -30,6 +30,13 @@ include::{snippets}/comic/response-fields.adoc[]
 include::{snippets}/comics-production/http-request.adoc[]
 include::{snippets}/comics-production/http-response.adoc[]
 
+=== 그림으로 만화 등록
+이미 그린 만화 그림(PNG 또는 JPEG, Base64)으로 내 만화함에 만화를 넣는다. 모델 비교처럼 파이프라인 밖에서 그린 시험 만화를 올릴 때 쓴다. 썸네일(폭 400px)은 서버가 만든다. `COMIC_IMPORT_USERS`에 넣은 사용자만 쓸 수 있고(아니면 403), PNG·JPEG가 아니면 415.
+
+include::{snippets}/comics-import/http-request.adoc[]
+include::{snippets}/comics-import/request-fields.adoc[]
+include::{snippets}/comics-import/http-response.adoc[]
+
 === 만화 이미지 주소
 web 서버만 쓴다. 받은 주소로 이미지를 가져와 브라우저에 중계한다.
 

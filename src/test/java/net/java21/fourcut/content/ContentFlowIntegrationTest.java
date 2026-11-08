@@ -47,11 +47,14 @@ import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
 
 /** 만화 등록 → 만화함 → 올리기 → 피드 → 좋아요·댓글 → 팔로우 → 내리기·삭제 → 탈퇴 정리. 같은 테스트가 REST Docs 스니펫을 만든다. */
-@SpringBootTest
+@SpringBootTest(properties = "comic-import.users=" + ContentFlowIntegrationTest.IMPORTER)
 @AutoConfigureMockMvc
 @AutoConfigureRestDocs
 @Import(TestcontainersConfiguration.class)
 class ContentFlowIntegrationTest {
+
+  /** 그림으로 만화 등록을 허용한 사용자. */
+  static final String IMPORTER = "importer_aaaaaaaaaaaa";
 
   private static final HeaderDescriptor USER =
       headerWithName("X-User-Id").description("게이트웨이가 붙인 사용자 ID");
@@ -793,5 +796,87 @@ class ContentFlowIntegrationTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{}"))
         .andExpect(status().isNotFound());
+  }
+
+  private static String png(int width, int height) throws Exception {
+    var image =
+        new java.awt.image.BufferedImage(width, height, java.awt.image.BufferedImage.TYPE_INT_RGB);
+    var out = new java.io.ByteArrayOutputStream();
+    javax.imageio.ImageIO.write(image, "png", out);
+    return java.util.Base64.getEncoder().encodeToString(out.toByteArray());
+  }
+
+  private static String importBody(String image) {
+    return """
+        {"title":"[회차 29 · dev NF4] 비 오는 교문","image":"%s",
+         "cast":[{"role":"남자","name":"하늘","lookId":null}],
+         "production":{"version":1,"round":29,"variant":"dev-nf4","totalMs":210000}}
+        """
+        .formatted(image);
+  }
+
+  @Test
+  @DisplayName("그림으로 만화 등록: 허용한 사용자의 만화함에 들어가고 썸네일을 만들며, 올리면 피드에 나온다")
+  void importComic() throws Exception {
+    String body =
+        perform(
+                as(post("/api/v1/comics"), IMPORTER)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(importBody(png(800, 1600))))
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.title").value("[회차 29 · dev NF4] 비 오는 교문"))
+            .andExpect(jsonPath("$.language").value("ko"))
+            .andExpect(jsonPath("$.state").value("IN_INBOX"))
+            .andExpect(jsonPath("$.cast[0].name").value("하늘"))
+            .andExpect(jsonPath("$.production.variant").value("dev-nf4"))
+            .andDo(
+                doc(
+                    "comics-import",
+                    requestHeaders(USER),
+                    requestFields(
+                        fieldWithPath("title").description("만화 제목"),
+                        fieldWithPath("image").description("완성 만화 그림 (PNG 또는 JPEG, Base64)"),
+                        subsectionWithPath("cast").optional().description("등장인물 소개"),
+                        subsectionWithPath("production")
+                            .optional()
+                            .description("제작 정보 (version 1 형식)")),
+                    responseFields(COMIC)))
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+    String comicId = JsonPath.read(body, "$.id");
+    Comic comic = comics.findByPublicId(comicId).orElseThrow();
+    assertThat(comic.getImageKey()).endsWith("/full.png");
+    assertThat(objectExists(comic.getImageKey())).isTrue();
+    assertThat(objectExists(comic.getThumbKey())).isTrue();
+    var thumb =
+        javax.imageio.ImageIO.read(
+            s3.getObject(
+                b -> b.bucket(TestcontainersConfiguration.BUCKET).key(comic.getThumbKey())));
+    assertThat(thumb.getWidth()).isEqualTo(400);
+    assertThat(thumb.getHeight()).isEqualTo(800);
+    publish(IMPORTER, comicId, "PUBLIC");
+
+    // 허용하지 않은 사용자는 403, PNG·JPEG가 아니면 415, Base64가 틀리면 400
+    perform(
+            as(post("/api/v1/comics"), PublicId.generate())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(importBody(png(10, 10))))
+        .andExpect(status().isForbidden());
+    perform(
+            as(post("/api/v1/comics"), IMPORTER)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(importBody("R0lGODlhAQABAAAAACw=")))
+        .andExpect(status().isUnsupportedMediaType());
+    perform(
+            as(post("/api/v1/comics"), IMPORTER)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(importBody("iVBORw0KGgo=")))
+        .andExpect(status().isUnsupportedMediaType());
+    perform(
+            as(post("/api/v1/comics"), IMPORTER)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(importBody("@@@")))
+        .andExpect(status().isBadRequest());
   }
 }

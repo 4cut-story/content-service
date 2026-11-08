@@ -31,6 +31,10 @@ storage:
   secret-key: ${MINIO_SECRET_KEY:minioadmin}
   bucket: ${MINIO_BUCKET:4cut}
 
+# 그림으로 만화 등록을 쓸 수 있는 사용자 ID (쉼표로 구분). 비우면 아무도 못 쓴다
+comic-import:
+  users: ${COMIC_IMPORT_USERS:}
+
 server:
   port: ${PORT:8083}
   shutdown: graceful

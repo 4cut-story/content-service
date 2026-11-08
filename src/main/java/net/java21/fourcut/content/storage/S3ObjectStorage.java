@@ -3,6 +3,7 @@ package net.java21.fourcut.content.storage;
 import java.time.Duration;
 import java.util.Collection;
 import java.util.List;
+import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.Delete;
 import software.amazon.awssdk.services.s3.model.DeleteObjectsRequest;
@@ -29,6 +30,12 @@ public class S3ObjectStorage implements ObjectStorage {
             r -> r.signatureDuration(ttl).getObjectRequest(g -> g.bucket(bucket).key(key)))
         .url()
         .toString();
+  }
+
+  @Override
+  public void put(String key, byte[] bytes, String contentType) {
+    client.putObject(
+        r -> r.bucket(bucket).key(key).contentType(contentType), RequestBody.fromBytes(bytes));
   }
 
   @Override

@@ -37,13 +37,49 @@ public class ComicService {
   private final PostRepository posts;
   private final ObjectStorage storage;
   private final JsonMapper json;
+  private final ImportProperties importers;
 
   public ComicService(
-      ComicRepository comics, PostRepository posts, ObjectStorage storage, JsonMapper json) {
+      ComicRepository comics,
+      PostRepository posts,
+      ObjectStorage storage,
+      JsonMapper json,
+      ImportProperties importers) {
     this.comics = comics;
     this.posts = posts;
     this.storage = storage;
     this.json = json;
+    this.importers = importers;
+  }
+
+  /**
+   * 이미 그린 만화 그림으로 만화함에 만화를 넣는다 (모델 비교처럼 파이프라인 밖에서 그린 시험 만화). 허용한 사용자만 쓴다(아니면 403). 대화가 없으므로 대화 ID
+   * 자리에는 새 ID를 넣어 저장 경로를 나눈다.
+   */
+  @Transactional
+  public ComicView importComic(String owner, ImportComicRequest r) {
+    if (!importers.users().contains(owner)) {
+      throw new ApiException(ErrorCode.FORBIDDEN);
+    }
+    ComicImages.Decoded image = ComicImages.decode(r.image());
+    String conversationId = PublicId.generate();
+    String imageKey = "comics/" + conversationId + "/full." + image.extension();
+    String thumbKey = "comics/" + conversationId + "/thumb.png";
+    storage.put(imageKey, image.bytes(), image.contentType());
+    storage.put(thumbKey, ComicImages.thumbnail(image.image()), "image/png");
+    Comic comic =
+        new Comic(
+            owner,
+            conversationId,
+            r.title(),
+            imageKey,
+            thumbKey,
+            r.language() == null ? "ko" : r.language(),
+            "[]");
+    comic.describe(
+        r.cast() == null ? null : json.writeValueAsString(r.cast()), r.concept(), r.dialect());
+    comic.recordProduction(productionJson(r.production()));
+    return viewsOf(List.of(comics.save(comic))).get(0);
   }
 
   /** 완성된 만화를 만화함에 넣는다. 같은 대화로 다시 오면 기존 만화를 돌려준다 (멱등). */
