@@ -63,6 +63,11 @@ public class Comic extends BaseEntity {
   @Column(length = 20)
   private String dialect;
 
+  /** 제작 정보 (JSON 객체: 단계별 모델·조건·걸린 시간). conversation-service가 만든 그대로 둔다. 예전 만화는 null. */
+  @JdbcTypeCode(SqlTypes.JSON)
+  @Column(columnDefinition = "json")
+  private String production;
+
   @Enumerated(EnumType.STRING)
   @Column(nullable = false, length = 20)
   private State state = State.IN_INBOX;
@@ -93,6 +98,15 @@ public class Comic extends BaseEntity {
     this.castMembers = castMembers;
     this.concept = concept;
     this.dialect = dialect;
+  }
+
+  /** 제작 정보를 남긴다. 이미 있으면 덮어쓴다. */
+  public void recordProduction(String production) {
+    this.production = production;
+  }
+
+  public String getProduction() {
+    return production;
   }
 
   public String getCastMembers() {

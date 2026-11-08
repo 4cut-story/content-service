@@ -2,6 +2,7 @@ package net.java21.fourcut.content.comic;
 
 import java.time.Instant;
 import java.util.List;
+import tools.jackson.databind.JsonNode;
 
 /**
  * 만화함 항목·만화 상세.
@@ -13,6 +14,7 @@ import java.util.List;
  * @param cast 등장인물 소개. 예전 만화는 빈 목록
  * @param concept 그린 그림체. 예전 만화는 null
  * @param dialect 대사 사투리. 예전 만화는 null
+ * @param production 제작 정보 (단계별 모델·조건·걸린 시간). 예전 만화는 null
  */
 public record ComicView(
     String id,
@@ -25,4 +27,5 @@ public record ComicView(
     Instant createdAt,
     List<CastMember> cast,
     String concept,
-    String dialect) {}
+    String dialect,
+    JsonNode production) {}

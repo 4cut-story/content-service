@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import net.java21.fourcut.content.error.ApiException;
+import net.java21.fourcut.content.error.ErrorCode;
 import net.java21.fourcut.content.post.Post;
 import net.java21.fourcut.content.post.PostRepository;
 import net.java21.fourcut.content.storage.ObjectStorage;
@@ -15,6 +16,7 @@ import org.springframework.data.domain.Limit;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
 /** 만화함: 등록(내부), 목록, 상세, 삭제, 이미지 주소. 만화는 주인만 본다. */
@@ -25,6 +27,9 @@ public class ComicService {
   public static final Duration IMAGE_URL_TTL = Duration.ofSeconds(60);
 
   private static final TypeReference<List<String>> STRINGS = new TypeReference<>() {};
+
+  /** 제작 정보 최대 크기 (JSON 문자 수). 컷이 10개여도 몇 KB라 넉넉히 둔다. */
+  static final int MAX_PRODUCTION = 32_000;
 
   private static final TypeReference<List<CastMember>> CAST = new TypeReference<>() {};
 
@@ -63,6 +68,7 @@ public class ComicService {
                   r.cast() == null ? null : json.writeValueAsString(r.cast()),
                   r.concept(),
                   r.dialect());
+              comic.recordProduction(productionJson(r.production()));
               Comic saved = comics.save(comic);
               return new RegisteredComic(saved.getPublicId(), true);
             });
@@ -138,8 +144,51 @@ public class ComicService {
                     c.getCreatedAt(),
                     castOf(c),
                     c.getConcept(),
-                    c.getDialect()))
+                    c.getDialect(),
+                    productionOf(c)))
         .toList();
+  }
+
+  /**
+   * 대화로 찾은 만화에 제작 정보를 남긴다 (내부). 예전 만화를 conversation-service가 남은 단계 기록으로 채울 때 쓴다.
+   *
+   * @param overwrite false면 이미 있는 제작 정보는 그대로 둔다
+   * @return 만화가 없으면 false
+   */
+  @Transactional
+  public boolean recordProduction(String conversationId, JsonNode production, boolean overwrite) {
+    String raw = productionJson(production);
+    if (raw == null) {
+      throw new ApiException(ErrorCode.VALIDATION_FAILED);
+    }
+    return comics
+        .findByConversationId(conversationId)
+        .map(
+            c -> {
+              if (overwrite || c.getProduction() == null) {
+                c.recordProduction(raw);
+              }
+              return true;
+            })
+        .orElse(false);
+  }
+
+  /** 만화의 제작 정보. 예전 만화는 null. */
+  public JsonNode productionOf(Comic comic) {
+    String raw = comic.getProduction();
+    if (raw == null || raw.isBlank()) {
+      return null;
+    }
+    return json.readTree(raw);
+  }
+
+  /** 저장할 제작 정보 JSON. 객체가 아니거나 너무 크면 null (만화 등록은 제작 정보 없이도 된다). */
+  private String productionJson(JsonNode production) {
+    if (production == null || !production.isObject()) {
+      return null;
+    }
+    String raw = json.writeValueAsString(production);
+    return raw.length() > MAX_PRODUCTION ? null : raw;
   }
 
   /** 만화의 등장인물 소개. 예전 만화는 빈 목록. */

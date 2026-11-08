@@ -185,7 +185,8 @@ public class PostService {
                   liked.contains(p.getId()),
                   comic == null ? List.of() : comicService.castOf(comic),
                   comic == null ? null : comic.getConcept(),
-                  comic == null ? null : comic.getDialect());
+                  comic == null ? null : comic.getDialect(),
+                  comic == null ? null : comicService.productionOf(comic));
             })
         .toList();
   }
