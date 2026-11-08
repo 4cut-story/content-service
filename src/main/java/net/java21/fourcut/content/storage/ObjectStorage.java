@@ -9,6 +9,9 @@ public interface ObjectStorage {
   /** 짧게 쓰는 사전 서명 GET 주소. web 서버만 받아서 이미지를 중계한다. */
   String presignGet(String key, Duration ttl);
 
+  /** 객체를 올린다. 같은 키가 있으면 덮어쓴다. */
+  void put(String key, byte[] bytes, String contentType);
+
   /** 객체를 지운다. 없는 키도 성공이다. */
   void delete(Collection<String> keys);
 }

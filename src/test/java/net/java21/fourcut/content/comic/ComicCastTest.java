@@ -10,7 +10,12 @@ import tools.jackson.databind.json.JsonMapper;
 class ComicCastTest {
 
   private final ComicService service =
-      new ComicService(null, null, null, JsonMapper.builder().build());
+      new ComicService(
+          null,
+          null,
+          null,
+          JsonMapper.builder().build(),
+          new ImportProperties(java.util.List.of()));
 
   private static Comic comic() {
     return new Comic("o", "c", "t", "i", "th", "ko", "[]");
