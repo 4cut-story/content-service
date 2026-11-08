@@ -120,6 +120,14 @@ include::{snippets}/internal-comics/http-request.adoc[]
 include::{snippets}/internal-comics/request-fields.adoc[]
 include::{snippets}/internal-comics/http-response.adoc[]
 
+=== 제작 정보 채우기 (conversation-service)
+대화로 찾은 만화에 제작 정보(단계별 모델·조건·걸린 시간)를 남긴다. 예전 만화를 남은 단계 기록으로 채울 때 쓴다. 기본은 비어 있을 때만 채운다. 없는 대화면 404.
+
+include::{snippets}/internal-comics-production/http-request.adoc[]
+include::{snippets}/internal-comics-production/path-parameters.adoc[]
+include::{snippets}/internal-comics-production/query-parameters.adoc[]
+include::{snippets}/internal-comics-production/http-response.adoc[]
+
 === 탈퇴 정리 (auth-service)
 만화·게시물·남긴 좋아요와 댓글·팔로우(양방향)·이미지를 모두 지운다. 멱등.
 

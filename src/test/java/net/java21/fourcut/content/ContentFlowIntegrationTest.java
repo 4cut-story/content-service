@@ -84,7 +84,11 @@ class ContentFlowIntegrationTest {
     fieldWithPath("dialect")
         .type(JsonFieldType.STRING)
         .optional()
-        .description("대사 사투리 (NONE, GYEONGSANG…). 예전 만화는 null")
+        .description("대사 사투리 (NONE, GYEONGSANG…). 예전 만화는 null"),
+    subsectionWithPath("production")
+        .type(JsonFieldType.OBJECT)
+        .optional()
+        .description("제작 정보: 단계별 모델·조건·걸린 시간 (conversation-service가 만든 그대로). 예전 만화는 null")
   };
 
   private static final FieldDescriptor[] POST = {
@@ -108,7 +112,11 @@ class ContentFlowIntegrationTest {
     fieldWithPath("dialect")
         .type(JsonFieldType.STRING)
         .optional()
-        .description("대사 사투리 (NONE, GYEONGSANG…). 예전 만화는 null")
+        .description("대사 사투리 (NONE, GYEONGSANG…). 예전 만화는 null"),
+    subsectionWithPath("production")
+        .type(JsonFieldType.OBJECT)
+        .optional()
+        .description("제작 정보: 단계별 모델·조건·걸린 시간 (conversation-service가 만든 그대로). 예전 만화는 null")
   };
 
   private static final FieldDescriptor[] COMMENT = {
@@ -161,7 +169,8 @@ class ContentFlowIntegrationTest {
         {"ownerId":"%s","conversationId":"%s","title":"편의점 앞에서","imageKey":"comics/%s/full.png",
          "thumbKey":"comics/%s/thumb.png","language":"ko","nameWarnings":["민지"],
          "cast":[{"role":"할머니","name":"하늘","lookId":"aaaaaaaaaaaaaaaaaaaaa"},{"role":"손녀","name":"도윤","lookId":null}],
-         "concept":"WATERCOLOR","dialect":"GYEONGSANG"}
+         "concept":"WATERCOLOR","dialect":"GYEONGSANG",
+         "production":{"version":1,"totalMs":95000,"steps":[{"step":"DRAW","ms":41000}]}}
         """
         .formatted(owner, conversation, conversation, conversation);
   }
@@ -234,7 +243,11 @@ class ContentFlowIntegrationTest {
                                 .optional()
                                 .description("캐릭터 모습 ID. 캐릭터를 못 찾았으면 null"),
                             fieldWithPath("concept").description("그린 그림체 (DAILY, WATERCOLOR…)"),
-                            fieldWithPath("dialect").description("대사 사투리 (NONE, GYEONGSANG…)")),
+                            fieldWithPath("dialect").description("대사 사투리 (NONE, GYEONGSANG…)"),
+                            subsectionWithPath("production")
+                                .type(JsonFieldType.OBJECT)
+                                .optional()
+                                .description("제작 정보 (JSON 객체): 단계별 모델·조건·걸린 시간. 내용은 보지 않고 그대로 둔다")),
                         responseFields(fieldWithPath("comicId").description("만화 ID"))))
                 .andReturn()
                 .getResponse()
@@ -373,6 +386,7 @@ class ContentFlowIntegrationTest {
         .andExpect(jsonPath("$.cast[1].name").value("도윤"))
         .andExpect(jsonPath("$.concept").value("WATERCOLOR"))
         .andExpect(jsonPath("$.dialect").value("GYEONGSANG"))
+        .andExpect(jsonPath("$.production.steps[0].step").value("DRAW"))
         .andDo(
             doc(
                 "post",
@@ -703,5 +717,54 @@ class ContentFlowIntegrationTest {
                         .replace("\"ko\"", "\"jp\"")))
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.error.code").value("VALIDATION_FAILED"));
+  }
+
+  @Test
+  @DisplayName("FR-006: 대화로 찾은 만화에 제작 정보를 채운다. 있으면 그대로 두고, overwrite면 바꾼다")
+  void production() throws Exception {
+    String alice = PublicId.generate();
+    String conversation = PublicId.generate();
+    String comicId = register(alice, conversation);
+
+    // 이미 있으면 그대로 둔다
+    perform(
+            put("/internal/comics/by-conversation/{conversationId}/production", conversation)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"version\":1,\"totalMs\":1}"))
+        .andExpect(status().isNoContent());
+    perform(as(get("/api/v1/comics/{id}", comicId), alice))
+        .andExpect(jsonPath("$.production.totalMs").value(95000));
+
+    perform(
+            put("/internal/comics/by-conversation/{conversationId}/production", conversation)
+                .param("overwrite", "true")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {"version":1,"totalMs":120000,"steps":[{"step":"TRANSCRIBE","ms":30000}]}
+                    """))
+        .andExpect(status().isNoContent())
+        .andDo(
+            doc(
+                "internal-comics-production",
+                pathParameters(parameterWithName("conversationId").description("대화 ID")),
+                queryParameters(
+                    parameterWithName("overwrite")
+                        .optional()
+                        .description("true면 이미 있는 제작 정보도 바꾼다. 기본은 비어 있을 때만 채운다"))));
+    perform(as(get("/api/v1/comics/{id}", comicId), alice))
+        .andExpect(jsonPath("$.production.totalMs").value(120000));
+
+    // 객체가 아니면 400, 없는 대화면 404
+    perform(
+            put("/internal/comics/by-conversation/{conversationId}/production", conversation)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("[1]"))
+        .andExpect(status().isBadRequest());
+    perform(
+            put("/internal/comics/by-conversation/{conversationId}/production", PublicId.generate())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{}"))
+        .andExpect(status().isNotFound());
   }
 }

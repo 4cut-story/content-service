@@ -29,4 +29,13 @@ class ComicCastTest {
     assertThat(c.getConcept()).isEqualTo("DAILY");
     assertThat(c.getDialect()).isEqualTo("NONE");
   }
+
+  @Test
+  @DisplayName("FR-006: 제작 정보는 남긴 그대로 돌려주고, 예전 만화는 null")
+  void production() {
+    assertThat(service.productionOf(comic())).isNull();
+    Comic c = comic();
+    c.recordProduction("{\"version\":1,\"totalMs\":5}");
+    assertThat(service.productionOf(c).path("totalMs").asInt()).isEqualTo(5);
+  }
 }
