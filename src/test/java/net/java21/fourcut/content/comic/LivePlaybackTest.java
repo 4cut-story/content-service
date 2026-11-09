@@ -41,7 +41,7 @@ class LivePlaybackTest {
   }
 
   @Test
-  @DisplayName("003 FR-019·044: 컷 그림 키는 만화 그림 폴더 기준이고 frame은 a·b·c만 받는다")
+  @DisplayName("003 FR-019·044: 컷 그림 키는 만화 그림 폴더 기준이고 frame은 a·b·c·d만 받는다")
   void paths() {
     assertThat(LivePlayback.folder("comics/abc/full.png")).isEqualTo("comics/abc/");
     assertThat(LivePlayback.folder("full.png")).isEmpty();
@@ -51,8 +51,19 @@ class LivePlaybackTest {
     assertThat(LivePlayback.frame(null)).isEqualTo("a");
     assertThat(LivePlayback.frame(" A ")).isEqualTo("a");
     assertThat(LivePlayback.frame("c")).isEqualTo("c");
-    assertThatThrownBy(() -> LivePlayback.frame("d")).isInstanceOf(ApiException.class);
+    assertThat(LivePlayback.frame("d")).isEqualTo("d");
+    assertThatThrownBy(() -> LivePlayback.frame("e")).isInstanceOf(ApiException.class);
     assertThatThrownBy(() -> LivePlayback.path(0, "a")).isInstanceOf(ApiException.class);
+  }
+
+  @Test
+  @DisplayName("003 FR-049: 네 번째 그림(-d)이 있는 움직임 컷도 저장하고 그림 목록에 넣는다")
+  void fourthFrame() {
+    var live =
+        json.readTree(
+            "{\"version\":1,\"panels\":[{\"image\":\"panels/1.png\",\"motion\":{\"frames\":[\"panels/1.png\",\"panels/1-b.png\",\"panels/1-c.png\",\"panels/1-d.png\"]}}]}");
+    assertThat(LivePlayback.validated(json, live)).isNotNull();
+    assertThat(LivePlayback.images(live)).contains("panels/1-d.png");
   }
 
   @Test
@@ -63,7 +74,7 @@ class LivePlaybackTest {
             "{\"version\":1,\"panels\":[{\"image\":\"panels/1.png\",\"motion\":{\"frames\":[\"panels/1.png\",\"panels/1-b.png\",\"panels/1-c.png\"]}}]}");
     assertThat(LivePlayback.validated(json, live)).isNotNull();
     assertThat(LivePlayback.images(live)).contains("panels/1-c.png");
-    var bad = json.readTree("{\"panels\":[{\"image\":\"panels/1-d.png\"}]}");
+    var bad = json.readTree("{\"panels\":[{\"image\":\"panels/1-e.png\"}]}");
     assertThat(LivePlayback.validated(json, bad)).isNull();
   }
 

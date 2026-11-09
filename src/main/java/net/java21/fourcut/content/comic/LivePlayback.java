@@ -22,7 +22,7 @@ final class LivePlayback {
   /** conversation-service가 같은 폴더에 남기는 재생 정보 파일. 만화를 지울 때 함께 지운다. */
   static final String FILE = "live.json";
 
-  private static final Pattern IMAGE = Pattern.compile("panels/([1-9]|10)(-[bc])?\\.png");
+  private static final Pattern IMAGE = Pattern.compile("panels/([1-9]|10)(-[bcd])?\\.png");
 
   /** 넓은 그림 컷의 깊이 지도 경로(FR-048). */
   private static final Pattern DEPTH = Pattern.compile("panels/([1-9]|10)-depth\\.png");
@@ -66,7 +66,7 @@ final class LivePlayback {
     return path.isString() && DEPTH.matcher(path.asString()).matches();
   }
 
-  /** 재생 정보에 나오는 그림 경로(첫 그림, 움직임 컷의 두 번째·세 번째 그림, 깊이 지도). */
+  /** 재생 정보에 나오는 그림 경로(첫 그림, 움직임 컷의 두 번째~네 번째 그림, 깊이 지도). */
   static Set<String> images(JsonNode live) {
     Set<String> out = new LinkedHashSet<>();
     for (JsonNode p : live.path("panels")) {
@@ -91,7 +91,7 @@ final class LivePlayback {
     return slash < 0 ? "" : imageKey.substring(0, slash + 1);
   }
 
-  /** 컷 그림 상대 경로. frame은 {@link #frame(String)} 값(a, b, c, depth). */
+  /** 컷 그림 상대 경로. frame은 {@link #frame(String)} 값(a, b, c, d, depth). */
   static String path(int panel, String frame) {
     if (panel < 1 || panel > 10) {
       throw ApiException.notFound();
@@ -99,16 +99,17 @@ final class LivePlayback {
     return "panels/" + panel + ("a".equals(frame) ? "" : "-" + frame) + ".png";
   }
 
-  /** frame 쿼리: 없거나 a면 첫 그림, b·c면 움직임 컷의 두 번째·세 번째 그림, depth면 깊이 지도. 그 밖은 400. */
+  /** frame 쿼리: 없거나 a면 첫 그림, b·c·d면 움직임 컷의 두 번째~네 번째 그림, depth면 깊이 지도. 그 밖은 400. */
   static String frame(String frame) {
     if (frame == null || frame.isBlank()) {
       return "a";
     }
     String f = frame.strip().toLowerCase(Locale.ROOT);
     return switch (f) {
-      case "a", "b", "c", "depth" -> f;
+      case "a", "b", "c", "d", "depth" -> f;
       default ->
-          throw new ApiException(ErrorCode.VALIDATION_FAILED, "frame은 a, b, c, depth 중 하나여야 해요.");
+          throw new ApiException(
+              ErrorCode.VALIDATION_FAILED, "frame은 a, b, c, d, depth 중 하나여야 해요.");
     };
   }
 }
