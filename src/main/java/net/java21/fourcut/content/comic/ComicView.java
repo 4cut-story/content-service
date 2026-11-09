@@ -16,6 +16,7 @@ import tools.jackson.databind.JsonNode;
  * @param dialect 대사 사투리. 예전 만화는 null
  * @param summary 만화 아래 줄거리 요약. 예전 만화는 null
  * @param production 제작 정보 (단계별 모델·조건·걸린 시간). 예전 만화는 null
+ * @param live 라이브 모드 재생 정보가 있는지. 예전 만화는 false(만화보기만)
  */
 public record ComicView(
     String id,
@@ -30,4 +31,5 @@ public record ComicView(
     String concept,
     String dialect,
     String summary,
-    JsonNode production) {}
+    JsonNode production,
+    boolean live) {}

@@ -74,7 +74,15 @@ public class ComicController {
       @RequestHeader(HeaderNames.USER_ID) String userId,
       @PathVariable String id,
       @RequestParam(required = false) String size,
-      @RequestParam(required = false) Integer cast) {
-    return comics.image(userId, id, ImageSize.parse(size), cast);
+      @RequestParam(required = false) Integer cast,
+      @RequestParam(required = false) Integer panel,
+      @RequestParam(required = false) String frame) {
+    return comics.image(userId, id, ImageSize.parse(size), cast, panel, frame);
+  }
+
+  /** 내 만화의 라이브 모드 재생 정보 (003-live-mode). 남의 만화이거나 예전 만화면 404. */
+  @GetMapping("/{id}/live")
+  public JsonNode live(@RequestHeader(HeaderNames.USER_ID) String userId, @PathVariable String id) {
+    return comics.live(userId, id);
   }
 }

@@ -112,6 +112,7 @@ public class ComicService {
                   r.dialect());
               comic.recordSummary(summaryOf(r.summary()));
               comic.recordProduction(productionJson(r.production()));
+              comic.recordLive(LivePlayback.validated(json, r.live()));
               Comic saved = comics.save(comic);
               return new RegisteredComic(saved.getPublicId(), true);
             });
@@ -147,6 +148,12 @@ public class ComicService {
   public List<String> imageKeys(Comic comic) {
     List<String> keys = new ArrayList<>(List.of(comic.getImageKey(), comic.getThumbKey()));
     castOf(comic).stream().map(CastMember::portraitKey).filter(k -> k != null).forEach(keys::add);
+    JsonNode live = rawLive(comic);
+    if (live != null) {
+      String folder = LivePlayback.folder(comic.getImageKey());
+      LivePlayback.images(live).forEach(path -> keys.add(folder + path));
+      keys.add(folder + LivePlayback.FILE);
+    }
     return keys;
   }
 
@@ -157,8 +164,57 @@ public class ComicService {
    */
   @Transactional(readOnly = true)
   public ImageUrl image(String owner, String comicId, ImageSize size, Integer cast) {
+    return image(owner, comicId, size, cast, null, null);
+  }
+
+  /** 만화함 이미지 주소. panel이 있으면 라이브 모드 컷 그림(frame b면 두 번째 그림). */
+  @Transactional(readOnly = true)
+  public ImageUrl image(
+      String owner, String comicId, ImageSize size, Integer cast, Integer panel, String frame) {
     Comic comic = owned(owner, comicId);
+    if (panel != null) {
+      return panelImageOf(comic, panel, frame, cast);
+    }
     return cast == null ? imageOf(comic, size) : castImageOf(comic, cast);
+  }
+
+  /** 내 만화의 라이브 모드 재생 정보. 남의 만화이거나 없으면 404. */
+  @Transactional(readOnly = true)
+  public JsonNode live(String owner, String comicId) {
+    return liveOf(owned(owner, comicId));
+  }
+
+  /** 만화의 라이브 모드 재생 정보. 없으면(예전 만화) 404. 공개 범위 확인은 부르는 쪽이 한다. */
+  public JsonNode liveOf(Comic comic) {
+    JsonNode live = rawLive(comic);
+    if (live == null) {
+      throw ApiException.notFound();
+    }
+    return live;
+  }
+
+  /**
+   * 라이브 모드 컷 그림의 사전 서명 주소. 재생 정보에 그 그림이 없으면 404, cast와 함께 주거나 frame이 a·b가 아니면 400.
+   *
+   * @param panel 컷 순서(1부터)
+   * @param frame a(첫 그림, 기본) 또는 b(두 번째 그림)
+   */
+  public ImageUrl panelImageOf(Comic comic, int panel, String frame, Integer cast) {
+    if (cast != null) {
+      throw new ApiException(ErrorCode.VALIDATION_FAILED, "panel과 cast는 함께 쓸 수 없어요.");
+    }
+    boolean second = LivePlayback.second(frame);
+    String path = LivePlayback.path(panel, second);
+    JsonNode live = rawLive(comic);
+    if (live == null || !LivePlayback.images(live).contains(path)) {
+      throw ApiException.notFound();
+    }
+    return presign(LivePlayback.folder(comic.getImageKey()) + path);
+  }
+
+  private JsonNode rawLive(Comic comic) {
+    String raw = comic.getLive();
+    return raw == null || raw.isBlank() ? null : json.readTree(raw);
   }
 
   /** 만화 이미지의 사전 서명 주소. */
@@ -231,7 +287,8 @@ public class ComicService {
                     c.getConcept(),
                     c.getDialect(),
                     c.getSummary(),
-                    productionOf(c)))
+                    productionOf(c),
+                    c.getLive() != null))
         .toList();
   }
 

@@ -22,6 +22,7 @@ import net.java21.fourcut.content.support.PublicId;
 import org.springframework.data.domain.Limit;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import tools.jackson.databind.JsonNode;
 
 /** 올리기·내리기, 피드, 프로필 게시물, 상세, 좋아요. 볼 수 없는 게시물은 404다. */
 @Service
@@ -113,9 +114,29 @@ public class PostService {
 
   @Transactional(readOnly = true)
   public ImageUrl image(String viewer, String postId, ImageSize size, Integer cast) {
-    Post post = visible(viewer, postId);
-    Comic comic = comics.findById(post.getComicId()).orElseThrow(ApiException::notFound);
+    return image(viewer, postId, size, cast, null, null);
+  }
+
+  /** 게시물 이미지. panel이 있으면 라이브 모드 컷 그림(frame b면 두 번째 그림). */
+  @Transactional(readOnly = true)
+  public ImageUrl image(
+      String viewer, String postId, ImageSize size, Integer cast, Integer panel, String frame) {
+    Comic comic = comicOf(viewer, postId);
+    if (panel != null) {
+      return comicService.panelImageOf(comic, panel, frame, cast);
+    }
     return cast == null ? comicService.imageOf(comic, size) : comicService.castImageOf(comic, cast);
+  }
+
+  /** 볼 수 있는 게시물의 라이브 모드 재생 정보. 볼 수 없거나 없으면 404. */
+  @Transactional(readOnly = true)
+  public JsonNode live(String viewer, String postId) {
+    return comicService.liveOf(comicOf(viewer, postId));
+  }
+
+  private Comic comicOf(String viewer, String postId) {
+    Post post = visible(viewer, postId);
+    return comics.findById(post.getComicId()).orElseThrow(ApiException::notFound);
   }
 
   /** 좋아요 (멱등). */
@@ -187,7 +208,8 @@ public class PostService {
                   comic == null ? null : comic.getConcept(),
                   comic == null ? null : comic.getDialect(),
                   comic == null ? null : comic.getSummary(),
-                  comic == null ? null : comicService.productionOf(comic));
+                  comic == null ? null : comicService.productionOf(comic),
+                  comic != null && comic.getLive() != null);
             })
         .toList();
   }

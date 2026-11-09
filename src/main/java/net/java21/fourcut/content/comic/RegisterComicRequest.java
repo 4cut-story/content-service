@@ -17,6 +17,7 @@ import tools.jackson.databind.JsonNode;
  * @param dialect 대사 사투리 (NONE, GYEONGSANG…)
  * @param summary 만화 아래 줄거리 요약 (몇 문장). 예전 conversation-service는 보내지 않는다
  * @param production 제작 정보 (JSON 객체). content-service는 내용을 보지 않고 그대로 둔다
+ * @param live 라이브 모드 재생 정보 (JSON 객체, LivePlayback). 형식이 틀리면 버리고 등록한다
  */
 public record RegisterComicRequest(
     @NotNull @Pattern(regexp = PublicId.PATTERN) String ownerId,
@@ -30,7 +31,8 @@ public record RegisterComicRequest(
     @Pattern(regexp = OPTION) String concept,
     @Pattern(regexp = OPTION) String dialect,
     @Size(max = Comic.MAX_SUMMARY) String summary,
-    JsonNode production) {
+    JsonNode production,
+    JsonNode live) {
 
   /** 그림체·사투리 옵션 값 (conversation-service의 enum 이름). */
   static final String OPTION = "[A-Z_]{1,20}";
