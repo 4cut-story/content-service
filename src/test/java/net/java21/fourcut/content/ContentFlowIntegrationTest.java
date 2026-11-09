@@ -807,6 +807,37 @@ class ContentFlowIntegrationTest {
   }
 
   @Test
+  @DisplayName("003 FR-047: 대화로 찾은 예전 만화의 재생 정보를 다시 만든 것으로 바꾼다. 형식이 틀리면 400, 없는 대화면 404")
+  void replaceLive() throws Exception {
+    String alice = PublicId.generate();
+    String conversation = PublicId.generate();
+    String comicId = register(alice, conversation);
+
+    perform(
+            put("/internal/comics/by-conversation/{conversationId}/live", conversation)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {"version":1,"panels":[{"index":1,"image":"panels/1.png","ambient":["glow"],"motion":null}]}
+                    """))
+        .andExpect(status().isNoContent());
+    perform(as(get("/api/v1/comics/{id}/live", comicId), alice))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.panels[0].ambient[0]").value("glow"));
+
+    perform(
+            put("/internal/comics/by-conversation/{conversationId}/live", conversation)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"version\":1,\"panels\":[{\"index\":1,\"image\":\"../x.png\"}]}"))
+        .andExpect(status().isBadRequest());
+    perform(
+            put("/internal/comics/by-conversation/{conversationId}/live", PublicId.generate())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"version\":1,\"panels\":[{\"index\":1,\"image\":\"panels/1.png\"}]}"))
+        .andExpect(status().isNotFound());
+  }
+
+  @Test
   @DisplayName("FR-012~013: 내리기는 만화함으로, 삭제는 만화·이미지까지")
   void unpublishAndDelete() throws Exception {
     String alice = PublicId.generate();

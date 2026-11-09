@@ -234,6 +234,30 @@ public class ComicService {
     return new ImageUrl(storage.presignGet(key, IMAGE_URL_TTL), IMAGE_URL_TTL.toSeconds());
   }
 
+  /** 다시 만든 라이브 재생 정보를 바꾼 결과. */
+  public enum LiveUpdate {
+    UPDATED,
+    NOT_FOUND,
+    INVALID
+  }
+
+  /** 대화로 찾은 만화의 라이브 재생 정보를 바꾼다 (내부). 예전 만화에 새 화면 효과·배경음을 채울 때 쓴다(FR-047). 형식이 틀리면 바꾸지 않는다. */
+  @Transactional
+  public LiveUpdate recordLive(String conversationId, JsonNode live) {
+    String valid = LivePlayback.validated(json, live);
+    if (valid == null) {
+      return LiveUpdate.INVALID;
+    }
+    return comics
+        .findByConversationId(conversationId)
+        .map(
+            c -> {
+              c.recordLive(valid);
+              return LiveUpdate.UPDATED;
+            })
+        .orElse(LiveUpdate.NOT_FOUND);
+  }
+
   /**
    * 대화로 찾은 만화의 등장인물 소개를 바꾼다 (내부). 예전 만화에 얼굴 그림을 채울 때 쓴다.
    *
