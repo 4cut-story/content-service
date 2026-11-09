@@ -66,4 +66,19 @@ class LivePlaybackTest {
     var bad = json.readTree("{\"panels\":[{\"image\":\"panels/1-d.png\"}]}");
     assertThat(LivePlayback.validated(json, bad)).isNull();
   }
+
+  @Test
+  @DisplayName("003 FR-048: 깊이 지도(-depth)는 저장하고 그림 목록에 넣으며 frame=depth로 부른다. 경로가 틀리면 저장하지 않는다")
+  void depth() {
+    var live =
+        json.readTree(
+            "{\"version\":1,\"panels\":[{\"image\":\"panels/2.png\",\"depth\":\"panels/2-depth.png\"},"
+                + "{\"image\":\"panels/3.png\",\"depth\":null}]}");
+    assertThat(LivePlayback.validated(json, live)).isNotNull();
+    assertThat(LivePlayback.images(live)).contains("panels/2-depth.png");
+    assertThat(LivePlayback.frame("depth")).isEqualTo("depth");
+    assertThat(LivePlayback.path(2, "depth")).isEqualTo("panels/2-depth.png");
+    var bad = json.readTree("{\"panels\":[{\"image\":\"panels/1.png\",\"depth\":\"../x.png\"}]}");
+    assertThat(LivePlayback.validated(json, bad)).isNull();
+  }
 }
