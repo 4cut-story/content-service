@@ -71,11 +71,11 @@ public class Comic extends BaseEntity {
   @Column(columnDefinition = "json")
   private String production;
 
-  @Enumerated(EnumType.STRING)
   /** 만화 아래 줄거리 요약. 예전 만화는 null. */
-  @Column(length = Comic.MAX_SUMMARY)
+  @Column(length = MAX_SUMMARY)
   private String summary;
 
+  @Enumerated(EnumType.STRING)
   @Column(nullable = false, length = 20)
   private State state = State.IN_INBOX;
 
