@@ -1,6 +1,8 @@
 package net.java21.fourcut.content.comic;
 
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import java.util.List;
 import java.util.Map;
 import net.java21.fourcut.content.error.ApiException;
@@ -53,6 +55,26 @@ public class InternalComicController {
     }
     return ResponseEntity.noContent().build();
   }
+
+  /**
+   * 대화로 찾은 만화에 줄거리 요약을 남긴다. 예전 만화를 남은 콘티로 채울 때 쓴다. 없는 대화면 404, 비었거나 너무 길면 400.
+   *
+   * @param overwrite true면 이미 있는 요약도 바꾼다. 기본은 비어 있을 때만 채운다
+   */
+  @PutMapping("/internal/comics/by-conversation/{conversationId}/summary")
+  public ResponseEntity<Void> summary(
+      @PathVariable String conversationId,
+      @RequestParam(defaultValue = "false") boolean overwrite,
+      @Valid @RequestBody SummaryRequest request) {
+    if (!PublicId.isValid(conversationId)
+        || !comics.recordSummary(conversationId, request.summary(), overwrite)) {
+      throw ApiException.notFound();
+    }
+    return ResponseEntity.noContent().build();
+  }
+
+  /** 줄거리 요약 본문. */
+  record SummaryRequest(@NotBlank @Size(max = Comic.MAX_SUMMARY) String summary) {}
 
   /** 대화로 찾은 만화의 등장인물 소개를 바꾼다. 예전 만화에 얼굴 그림을 채울 때 쓴다. 없는 대화면 404, 본문이 틀리면 400. */
   @PutMapping("/internal/comics/by-conversation/{conversationId}/cast")

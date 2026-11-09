@@ -141,6 +141,15 @@ include::{snippets}/internal-comics-production/path-parameters.adoc[]
 include::{snippets}/internal-comics-production/query-parameters.adoc[]
 include::{snippets}/internal-comics-production/http-response.adoc[]
 
+=== 줄거리 요약 채우기 (conversation-service)
+대화로 찾은 만화에 줄거리 요약(만화 아래에 보이는 몇 문장)을 남긴다. 예전 만화를 남은 콘티로 채울 때 쓴다. 기본은 비어 있을 때만 채운다. 비었거나 1000자를 넘으면 400, 없는 대화면 404.
+
+include::{snippets}/internal-comics-summary/http-request.adoc[]
+include::{snippets}/internal-comics-summary/path-parameters.adoc[]
+include::{snippets}/internal-comics-summary/query-parameters.adoc[]
+include::{snippets}/internal-comics-summary/request-fields.adoc[]
+include::{snippets}/internal-comics-summary/http-response.adoc[]
+
 === 탈퇴 정리 (auth-service)
 만화·게시물·남긴 좋아요와 댓글·팔로우(양방향)·이미지를 모두 지운다. 멱등.
 
