@@ -22,6 +22,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import tools.jackson.databind.JsonNode;
 
 /** 게시물, 피드, 좋아요. */
 @RestController
@@ -86,8 +87,18 @@ public class PostController {
       @RequestHeader(value = HeaderNames.USER_ID, required = false) String userId,
       @PathVariable String id,
       @RequestParam(required = false) String size,
-      @RequestParam(required = false) Integer cast) {
-    return posts.image(Viewer.of(userId), id, ImageSize.parse(size), cast);
+      @RequestParam(required = false) Integer cast,
+      @RequestParam(required = false) Integer panel,
+      @RequestParam(required = false) String frame) {
+    return posts.image(Viewer.of(userId), id, ImageSize.parse(size), cast, panel, frame);
+  }
+
+  /** 게시물의 라이브 모드 재생 정보 (003-live-mode). 볼 수 없거나 예전 만화면 404. */
+  @GetMapping("/api/v1/posts/{id}/live")
+  public JsonNode live(
+      @RequestHeader(value = HeaderNames.USER_ID, required = false) String userId,
+      @PathVariable String id) {
+    return posts.live(Viewer.of(userId), id);
   }
 
   @PutMapping("/api/v1/posts/{id}/like")

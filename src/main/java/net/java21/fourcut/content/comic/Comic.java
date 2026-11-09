@@ -68,6 +68,11 @@ public class Comic extends BaseEntity {
   @Column(columnDefinition = "json")
   private String production;
 
+  /** 라이브 모드 재생 정보 (JSON 객체, common contracts/live-mode.yaml LivePlayback). 예전 만화는 null(만화보기만). */
+  @JdbcTypeCode(SqlTypes.JSON)
+  @Column(columnDefinition = "json")
+  private String live;
+
   @Enumerated(EnumType.STRING)
   @Column(nullable = false, length = 20)
   private State state = State.IN_INBOX;
@@ -103,6 +108,15 @@ public class Comic extends BaseEntity {
   /** 제작 정보를 남긴다. 이미 있으면 덮어쓴다. */
   public void recordProduction(String production) {
     this.production = production;
+  }
+
+  /** 라이브 모드 재생 정보를 남긴다. */
+  public void recordLive(String live) {
+    this.live = live;
+  }
+
+  public String getLive() {
+    return live;
   }
 
   public String getProduction() {

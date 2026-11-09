@@ -91,7 +91,8 @@ class ContentFlowIntegrationTest {
     subsectionWithPath("production")
         .type(JsonFieldType.OBJECT)
         .optional()
-        .description("제작 정보: 단계별 모델·조건·걸린 시간 (conversation-service가 만든 그대로). 예전 만화는 null")
+        .description("제작 정보: 단계별 모델·조건·걸린 시간 (conversation-service가 만든 그대로). 예전 만화는 null"),
+    fieldWithPath("live").description("라이브 모드 재생 정보가 있는지. true면 /live로 받아 라이브 모드를 연다. 예전 만화는 false")
   };
 
   private static final FieldDescriptor[] POST = {
@@ -119,7 +120,8 @@ class ContentFlowIntegrationTest {
     subsectionWithPath("production")
         .type(JsonFieldType.OBJECT)
         .optional()
-        .description("제작 정보: 단계별 모델·조건·걸린 시간 (conversation-service가 만든 그대로). 예전 만화는 null")
+        .description("제작 정보: 단계별 모델·조건·걸린 시간 (conversation-service가 만든 그대로). 예전 만화는 null"),
+    fieldWithPath("live").description("라이브 모드 재생 정보가 있는지. true면 /live로 받아 라이브 모드를 연다. 예전 만화는 false")
   };
 
   private static final FieldDescriptor[] COMMENT = {
@@ -256,7 +258,12 @@ class ContentFlowIntegrationTest {
                             subsectionWithPath("production")
                                 .type(JsonFieldType.OBJECT)
                                 .optional()
-                                .description("제작 정보 (JSON 객체): 단계별 모델·조건·걸린 시간. 내용은 보지 않고 그대로 둔다")),
+                                .description("제작 정보 (JSON 객체): 단계별 모델·조건·걸린 시간. 내용은 보지 않고 그대로 둔다"),
+                            subsectionWithPath("live")
+                                .type(JsonFieldType.OBJECT)
+                                .optional()
+                                .description(
+                                    "라이브 모드 재생 정보 (LivePlayback). 그림 경로가 규칙에 맞지 않으면 버리고 등록한다")),
                         responseFields(fieldWithPath("comicId").description("만화 ID"))))
                 .andReturn()
                 .getResponse()
@@ -655,6 +662,128 @@ class ContentFlowIntegrationTest {
         .andExpect(status().isNoContent())
         .andDo(doc("unfollow", pathParameters(parameterWithName("userId").description("사용자 ID"))));
     perform(as(get("/api/v1/posts/{id}", postId), bob)).andExpect(status().isNotFound());
+  }
+
+  private static final String LIVE =
+      """
+      {"version":1,"panels":[
+       {"index":1,"role":"기","image":"panels/1.png","durationMs":4000,
+        "sound":{"publicId":"aaaaaaaaaaaaaaaaaaaaa","title":"밤 풀벌레","volume":0.8,"fadeMs":800,"loop":true,
+                 "credit":{"author":"작가","license":"CC-BY-4.0","licenseUrl":"https://l","sourceUrl":"https://s","originalTitle":null}},
+        "motion":{"type":"twinkle","frames":["panels/1.png","panels/1-b.png"],"intervalMs":700,"easing":"ease-in-out"}},
+       {"index":2,"role":"결","image":"panels/2.png","durationMs":3500,"sound":null,"motion":null}]}
+      """;
+
+  private String registerLive(String owner, String conversation, String live) throws Exception {
+    String body = registerBody(owner, conversation).strip();
+    body = body.substring(0, body.length() - 1) + ",\"live\":" + live + "}";
+    String response =
+        perform(post("/internal/comics").contentType(MediaType.APPLICATION_JSON).content(body))
+            .andExpect(status().isCreated())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+    return JsonPath.read(response, "$.comicId");
+  }
+
+  @Test
+  @DisplayName("003 FR-001·FR-018·FR-019: 라이브 재생 정보는 만화와 같은 공개 범위로 내주고, 컷 그림 주소를 주고, 삭제 때 함께 지운다")
+  void live() throws Exception {
+    String alice = PublicId.generate();
+    String bob = PublicId.generate();
+    String conversation = PublicId.generate();
+    String comicId = registerLive(alice, conversation, LIVE);
+
+    perform(as(get("/api/v1/comics/{id}", comicId), alice))
+        .andExpect(jsonPath("$.live").value(true));
+    perform(as(get("/api/v1/comics/{id}/live", comicId), alice))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.version").value(1))
+        .andExpect(jsonPath("$.panels[0].motion.type").value("twinkle"))
+        .andExpect(jsonPath("$.panels[0].sound.credit.license").value("CC-BY-4.0"))
+        .andDo(
+            doc(
+                "comic-live",
+                pathParameters(parameterWithName("id").description("만화 ID")),
+                responseFields(
+                    fieldWithPath("version").description("형식 버전 (1)"),
+                    subsectionWithPath("panels")
+                        .description(
+                            "보여 줄 순서대로의 컷: index, role, image, durationMs, sound(배경음·저작자 표시, 없으면 null),"
+                                + " motion(두 장 움직임, 없으면 null). common contracts/live-mode.yaml"))));
+    perform(as(get("/api/v1/comics/{id}/live", comicId), bob)).andExpect(status().isNotFound());
+
+    perform(
+            as(
+                get("/api/v1/comics/{id}/image", comicId).param("panel", "1").param("frame", "b"),
+                alice))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.url").value(org.hamcrest.Matchers.containsString("/panels/1-b.png")))
+        .andDo(
+            doc(
+                "comic-live-image",
+                pathParameters(parameterWithName("id").description("만화 ID")),
+                queryParameters(
+                    parameterWithName("panel").description("컷 순서(1부터). 말풍선이 들어간 컷 그림"),
+                    parameterWithName("frame")
+                        .optional()
+                        .description("a(첫 그림, 기본) 또는 b(움직임 컷의 두 번째 그림)")),
+                responseFields(IMAGE)));
+    perform(
+            as(
+                get("/api/v1/comics/{id}/image", comicId).param("panel", "2").param("frame", "b"),
+                alice))
+        .andExpect(status().isNotFound());
+    perform(as(get("/api/v1/comics/{id}/image", comicId).param("panel", "11"), alice))
+        .andExpect(status().isNotFound());
+    perform(
+            as(
+                get("/api/v1/comics/{id}/image", comicId).param("panel", "1").param("frame", "c"),
+                alice))
+        .andExpect(status().isBadRequest());
+    perform(
+            as(
+                get("/api/v1/comics/{id}/image", comicId).param("panel", "1").param("cast", "0"),
+                alice))
+        .andExpect(status().isBadRequest());
+
+    String postId = publish(alice, comicId, "FOLLOWERS");
+    perform(as(get("/api/v1/posts/{id}", postId), alice)).andExpect(jsonPath("$.live").value(true));
+    perform(as(get("/api/v1/posts/{id}/live", postId), alice))
+        .andExpect(status().isOk())
+        .andDo(doc("post-live", pathParameters(parameterWithName("id").description("게시물 ID"))));
+    perform(as(get("/api/v1/posts/{id}/image", postId).param("panel", "2"), alice))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.url").value(org.hamcrest.Matchers.containsString("/panels/2.png")));
+    // 팔로워만 게시물은 팔로워가 아니면 라이브 정보도 볼 수 없다
+    perform(as(get("/api/v1/posts/{id}/live", postId), bob)).andExpect(status().isNotFound());
+    perform(as(get("/api/v1/posts/{id}/image", postId).param("panel", "1"), bob))
+        .andExpect(status().isNotFound());
+
+    putObject("comics/" + conversation + "/panels/1.png");
+    putObject("comics/" + conversation + "/panels/1-b.png");
+    putObject("comics/" + conversation + "/live.json");
+    perform(as(delete("/api/v1/comics/{id}", comicId), alice)).andExpect(status().isNoContent());
+    assertThat(objectExists("comics/" + conversation + "/panels/1-b.png")).isFalse();
+    assertThat(objectExists("comics/" + conversation + "/live.json")).isFalse();
+  }
+
+  @Test
+  @DisplayName("003 FR-002: 예전 만화와 그림 경로가 틀린 재생 정보는 라이브 없이 등록되고 /live는 404다")
+  void noLive() throws Exception {
+    String alice = PublicId.generate();
+    String old = register(alice, PublicId.generate());
+    perform(as(get("/api/v1/comics/{id}", old), alice)).andExpect(jsonPath("$.live").value(false));
+    perform(as(get("/api/v1/comics/{id}/live", old), alice)).andExpect(status().isNotFound());
+    perform(as(get("/api/v1/comics/{id}/image", old).param("panel", "1"), alice))
+        .andExpect(status().isNotFound());
+
+    String bad =
+        registerLive(
+            alice,
+            PublicId.generate(),
+            "{\"version\":1,\"panels\":[{\"index\":1,\"image\":\"../../secret.png\"}]}");
+    perform(as(get("/api/v1/comics/{id}/live", bad), alice)).andExpect(status().isNotFound());
   }
 
   @Test
