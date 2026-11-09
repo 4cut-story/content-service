@@ -12,6 +12,7 @@ import tools.jackson.databind.JsonNode;
  *
  * @param image 완성 만화 그림 (PNG 또는 JPEG, Base64). 썸네일은 서버가 만든다
  * @param language 대사 언어. 없으면 ko
+ * @param summary 만화 아래 줄거리 요약. 없으면 비워 둔다
  * @param production 제작 정보 (JSON 객체, conversation-service 제작 정보 version 1과 같은 형식)
  */
 public record ImportComicRequest(
@@ -21,6 +22,7 @@ public record ImportComicRequest(
     @Valid @Size(max = 10) List<CastMember> cast,
     @Pattern(regexp = RegisterComicRequest.OPTION) String concept,
     @Pattern(regexp = RegisterComicRequest.OPTION) String dialect,
+    @Size(max = Comic.MAX_SUMMARY) String summary,
     JsonNode production) {
 
   /** Base64 그림 최대 길이 (원본 약 9MB). 컷 10개 세로 그림도 PNG로 들어간다. */
