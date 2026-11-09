@@ -752,9 +752,15 @@ class ContentFlowIntegrationTest {
         .andExpect(status().isNotFound());
     perform(
             as(
-                get("/api/v1/comics/{id}/image", comicId).param("panel", "1").param("frame", "c"),
+                get("/api/v1/comics/{id}/image", comicId).param("panel", "1").param("frame", "d"),
                 alice))
         .andExpect(status().isBadRequest());
+    // 재생 정보에 없는 세 번째 그림은 404다
+    perform(
+            as(
+                get("/api/v1/comics/{id}/image", comicId).param("panel", "1").param("frame", "c"),
+                alice))
+        .andExpect(status().isNotFound());
     perform(
             as(
                 get("/api/v1/comics/{id}/image", comicId).param("panel", "1").param("cast", "0"),

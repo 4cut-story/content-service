@@ -117,7 +117,7 @@ public class PostService {
     return image(viewer, postId, size, cast, null, null);
   }
 
-  /** 게시물 이미지. panel이 있으면 라이브 모드 컷 그림(frame b면 두 번째 그림). */
+  /** 게시물 이미지. panel이 있으면 라이브 모드 컷 그림(frame b·c면 움직임 컷의 두 번째·세 번째 그림). */
   @Transactional(readOnly = true)
   public ImageUrl image(
       String viewer, String postId, ImageSize size, Integer cast, Integer panel, String frame) {

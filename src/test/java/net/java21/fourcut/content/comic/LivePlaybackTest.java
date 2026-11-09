@@ -41,15 +41,29 @@ class LivePlaybackTest {
   }
 
   @Test
-  @DisplayName("003 FR-019: 컷 그림 키는 만화 그림 폴더 기준이고 frame은 a·b만 받는다")
+  @DisplayName("003 FR-019·044: 컷 그림 키는 만화 그림 폴더 기준이고 frame은 a·b·c만 받는다")
   void paths() {
     assertThat(LivePlayback.folder("comics/abc/full.png")).isEqualTo("comics/abc/");
     assertThat(LivePlayback.folder("full.png")).isEmpty();
-    assertThat(LivePlayback.path(3, true)).isEqualTo("panels/3-b.png");
-    assertThat(LivePlayback.second(null)).isFalse();
-    assertThat(LivePlayback.second(" A ")).isFalse();
-    assertThat(LivePlayback.second("b")).isTrue();
-    assertThatThrownBy(() -> LivePlayback.second("c")).isInstanceOf(ApiException.class);
-    assertThatThrownBy(() -> LivePlayback.path(0, false)).isInstanceOf(ApiException.class);
+    assertThat(LivePlayback.path(3, "b")).isEqualTo("panels/3-b.png");
+    assertThat(LivePlayback.path(3, "c")).isEqualTo("panels/3-c.png");
+    assertThat(LivePlayback.path(3, "a")).isEqualTo("panels/3.png");
+    assertThat(LivePlayback.frame(null)).isEqualTo("a");
+    assertThat(LivePlayback.frame(" A ")).isEqualTo("a");
+    assertThat(LivePlayback.frame("c")).isEqualTo("c");
+    assertThatThrownBy(() -> LivePlayback.frame("d")).isInstanceOf(ApiException.class);
+    assertThatThrownBy(() -> LivePlayback.path(0, "a")).isInstanceOf(ApiException.class);
+  }
+
+  @Test
+  @DisplayName("003 FR-044: 세 번째 그림(-c)이 있는 움직임 컷도 저장하고 그림 목록에 넣는다")
+  void thirdFrame() {
+    var live =
+        json.readTree(
+            "{\"version\":1,\"panels\":[{\"image\":\"panels/1.png\",\"motion\":{\"frames\":[\"panels/1.png\",\"panels/1-b.png\",\"panels/1-c.png\"]}}]}");
+    assertThat(LivePlayback.validated(json, live)).isNotNull();
+    assertThat(LivePlayback.images(live)).contains("panels/1-c.png");
+    var bad = json.readTree("{\"panels\":[{\"image\":\"panels/1-d.png\"}]}");
+    assertThat(LivePlayback.validated(json, bad)).isNull();
   }
 }
