@@ -194,17 +194,16 @@ public class ComicService {
   }
 
   /**
-   * 라이브 모드 컷 그림의 사전 서명 주소. 재생 정보에 그 그림이 없으면 404, cast와 함께 주거나 frame이 a·b가 아니면 400.
+   * 라이브 모드 컷 그림의 사전 서명 주소. 재생 정보에 그 그림이 없으면 404, cast와 함께 주거나 frame이 a·b·c가 아니면 400.
    *
    * @param panel 컷 순서(1부터)
-   * @param frame a(첫 그림, 기본) 또는 b(두 번째 그림)
+   * @param frame a(첫 그림, 기본), b·c(움직임 컷의 두 번째·세 번째 그림)
    */
   public ImageUrl panelImageOf(Comic comic, int panel, String frame, Integer cast) {
     if (cast != null) {
       throw new ApiException(ErrorCode.VALIDATION_FAILED, "panel과 cast는 함께 쓸 수 없어요.");
     }
-    boolean second = LivePlayback.second(frame);
-    String path = LivePlayback.path(panel, second);
+    String path = LivePlayback.path(panel, LivePlayback.frame(frame));
     JsonNode live = rawLive(comic);
     if (live == null || !LivePlayback.images(live).contains(path)) {
       throw ApiException.notFound();
