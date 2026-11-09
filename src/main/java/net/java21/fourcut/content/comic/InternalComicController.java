@@ -89,6 +89,23 @@ public class InternalComicController {
     return ResponseEntity.noContent().build();
   }
 
+  /** 대화로 찾은 만화의 라이브 재생 정보를 바꾼다(FR-047). 없는 대화면 404, 재생 정보 형식이 틀리면 400. */
+  @PutMapping("/internal/comics/by-conversation/{conversationId}/live")
+  public ResponseEntity<Void> live(
+      @PathVariable String conversationId, @RequestBody JsonNode live) {
+    if (!PublicId.isValid(conversationId)) {
+      throw ApiException.notFound();
+    }
+    switch (comics.recordLive(conversationId, live)) {
+      case NOT_FOUND -> throw ApiException.notFound();
+      case INVALID -> throw new ApiException(ErrorCode.VALIDATION_FAILED);
+      case UPDATED -> {
+        // 바꿨다
+      }
+    }
+    return ResponseEntity.noContent().build();
+  }
+
   /** 등록 본문과 같은 등장인물 수 한도. */
   static final int MAX_CAST = 10;
 }
