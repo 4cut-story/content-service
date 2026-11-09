@@ -24,6 +24,9 @@ final class LivePlayback {
 
   private static final Pattern IMAGE = Pattern.compile("panels/([1-9]|10)(-[bc])?\\.png");
 
+  /** 넓은 그림 컷의 깊이 지도 경로(FR-048). */
+  private static final Pattern DEPTH = Pattern.compile("panels/([1-9]|10)-depth\\.png");
+
   private LivePlayback() {}
 
   /** 저장할 JSON. 객체가 아니거나, 너무 크거나, 컷이 없거나, 그림 경로가 규칙에 맞지 않으면 null(라이브 없이 등록한다). */
@@ -46,6 +49,10 @@ final class LivePlayback {
           }
         }
       }
+      JsonNode depth = p.path("depth");
+      if (!depth.isMissingNode() && !depth.isNull() && !depthValid(depth)) {
+        return null;
+      }
     }
     String raw = json.writeValueAsString(live);
     return raw.length() > MAX_CHARS ? null : raw;
@@ -55,7 +62,11 @@ final class LivePlayback {
     return path.isString() && IMAGE.matcher(path.asString()).matches();
   }
 
-  /** 재생 정보에 나오는 그림 경로(첫 그림, 움직임 컷의 두 번째·세 번째 그림). */
+  private static boolean depthValid(JsonNode path) {
+    return path.isString() && DEPTH.matcher(path.asString()).matches();
+  }
+
+  /** 재생 정보에 나오는 그림 경로(첫 그림, 움직임 컷의 두 번째·세 번째 그림, 깊이 지도). */
   static Set<String> images(JsonNode live) {
     Set<String> out = new LinkedHashSet<>();
     for (JsonNode p : live.path("panels")) {
@@ -67,6 +78,9 @@ final class LivePlayback {
           out.add(f.asString());
         }
       }
+      if (depthValid(p.path("depth"))) {
+        out.add(p.path("depth").asString());
+      }
     }
     return out;
   }
@@ -77,7 +91,7 @@ final class LivePlayback {
     return slash < 0 ? "" : imageKey.substring(0, slash + 1);
   }
 
-  /** 컷 그림 상대 경로. frame은 {@link #frame(String)} 값(a, b, c). */
+  /** 컷 그림 상대 경로. frame은 {@link #frame(String)} 값(a, b, c, depth). */
   static String path(int panel, String frame) {
     if (panel < 1 || panel > 10) {
       throw ApiException.notFound();
@@ -85,15 +99,16 @@ final class LivePlayback {
     return "panels/" + panel + ("a".equals(frame) ? "" : "-" + frame) + ".png";
   }
 
-  /** frame 쿼리: 없거나 a면 첫 그림, b·c면 움직임 컷의 두 번째·세 번째 그림. 그 밖은 400. */
+  /** frame 쿼리: 없거나 a면 첫 그림, b·c면 움직임 컷의 두 번째·세 번째 그림, depth면 깊이 지도. 그 밖은 400. */
   static String frame(String frame) {
     if (frame == null || frame.isBlank()) {
       return "a";
     }
     String f = frame.strip().toLowerCase(Locale.ROOT);
     return switch (f) {
-      case "a", "b", "c" -> f;
-      default -> throw new ApiException(ErrorCode.VALIDATION_FAILED, "frame은 a, b, c 중 하나여야 해요.");
+      case "a", "b", "c", "depth" -> f;
+      default ->
+          throw new ApiException(ErrorCode.VALIDATION_FAILED, "frame은 a, b, c, depth 중 하나여야 해요.");
     };
   }
 }
