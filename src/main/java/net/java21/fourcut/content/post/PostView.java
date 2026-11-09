@@ -11,6 +11,7 @@ import tools.jackson.databind.JsonNode;
  * @param cast 만화 아래 등장인물 소개. 예전 만화는 빈 목록
  * @param concept 그린 그림체. 예전 만화는 null
  * @param dialect 대사 사투리. 예전 만화는 null
+ * @param summary 만화 아래 줄거리 요약. 예전 만화는 null
  * @param production 제작 정보 (단계별 모델·조건·걸린 시간). 예전 만화는 null
  */
 public record PostView(
@@ -27,4 +28,5 @@ public record PostView(
     List<CastView> cast,
     String concept,
     String dialect,
+    String summary,
     JsonNode production) {}

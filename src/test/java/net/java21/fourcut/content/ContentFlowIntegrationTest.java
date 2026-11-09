@@ -88,6 +88,10 @@ class ContentFlowIntegrationTest {
         .type(JsonFieldType.STRING)
         .optional()
         .description("대사 사투리 (NONE, GYEONGSANG…). 예전 만화는 null"),
+    fieldWithPath("summary")
+        .type(JsonFieldType.STRING)
+        .optional()
+        .description("만화 아래 줄거리 요약 (몇 문장). 예전 만화는 null"),
     subsectionWithPath("production")
         .type(JsonFieldType.OBJECT)
         .optional()
@@ -116,6 +120,10 @@ class ContentFlowIntegrationTest {
         .type(JsonFieldType.STRING)
         .optional()
         .description("대사 사투리 (NONE, GYEONGSANG…). 예전 만화는 null"),
+    fieldWithPath("summary")
+        .type(JsonFieldType.STRING)
+        .optional()
+        .description("만화 아래 줄거리 요약 (몇 문장). 예전 만화는 null"),
     subsectionWithPath("production")
         .type(JsonFieldType.OBJECT)
         .optional()
@@ -173,6 +181,7 @@ class ContentFlowIntegrationTest {
          "thumbKey":"comics/%s/thumb.png","language":"ko","nameWarnings":["민지"],
          "cast":[{"role":"할머니","name":"하늘","lookId":"aaaaaaaaaaaaaaaaaaaaa"},{"role":"손녀","name":"도윤","lookId":null,"portraitKey":"comics/%s/cast-1.png"}],
          "concept":"WATERCOLOR","dialect":"GYEONGSANG",
+         "summary":"할머니가 손녀에게 옛날 이야기를 들려준다.",
          "production":{"version":1,"totalMs":95000,"steps":[{"step":"DRAW","ms":41000}]}}
         """
         .formatted(owner, conversation, conversation, conversation, conversation);
@@ -253,6 +262,10 @@ class ContentFlowIntegrationTest {
                                         + " 없으면 null"),
                             fieldWithPath("concept").description("그린 그림체 (DAILY, WATERCOLOR…)"),
                             fieldWithPath("dialect").description("대사 사투리 (NONE, GYEONGSANG…)"),
+                            fieldWithPath("summary")
+                                .type(JsonFieldType.STRING)
+                                .optional()
+                                .description("만화 아래 줄거리 요약 (몇 문장, 1000자 이내)"),
                             subsectionWithPath("production")
                                 .type(JsonFieldType.OBJECT)
                                 .optional()
@@ -398,6 +411,7 @@ class ContentFlowIntegrationTest {
         .andExpect(jsonPath("$.cast[1].portraitKey").doesNotExist())
         .andExpect(jsonPath("$.concept").value("WATERCOLOR"))
         .andExpect(jsonPath("$.dialect").value("GYEONGSANG"))
+        .andExpect(jsonPath("$.summary").value("할머니가 손녀에게 옛날 이야기를 들려준다."))
         .andExpect(jsonPath("$.production.steps[0].step").value("DRAW"))
         .andDo(
             doc(
@@ -832,6 +846,78 @@ class ContentFlowIntegrationTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{}"))
         .andExpect(status().isNotFound());
+  }
+
+  @Test
+  @DisplayName("FR-006: 대화로 찾은 만화에 줄거리 요약을 채운다. 있으면 그대로 두고, overwrite면 바꾼다")
+  void summary() throws Exception {
+    String alice = PublicId.generate();
+    String conversation = PublicId.generate();
+    String comicId = register(alice, conversation);
+
+    perform(
+            put("/internal/comics/by-conversation/{conversationId}/summary", conversation)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"summary\":\"다른 요약\"}"))
+        .andExpect(status().isNoContent());
+    perform(as(get("/api/v1/comics/{id}", comicId), alice))
+        .andExpect(jsonPath("$.summary").value("할머니가 손녀에게 옛날 이야기를 들려준다."));
+
+    perform(
+            put("/internal/comics/by-conversation/{conversationId}/summary", conversation)
+                .param("overwrite", "true")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"summary\":\" 손녀가 할머니의 비밀 레시피를 알아낸다. \"}"))
+        .andExpect(status().isNoContent())
+        .andDo(
+            doc(
+                "internal-comics-summary",
+                pathParameters(parameterWithName("conversationId").description("대화 ID")),
+                queryParameters(
+                    parameterWithName("overwrite")
+                        .optional()
+                        .description("true면 이미 있는 요약도 바꾼다. 기본은 비어 있을 때만 채운다")),
+                requestFields(fieldWithPath("summary").description("줄거리 요약 (1000자 이내)"))));
+    perform(as(get("/api/v1/comics/{id}", comicId), alice))
+        .andExpect(jsonPath("$.summary").value("손녀가 할머니의 비밀 레시피를 알아낸다."));
+
+    // 비었거나 너무 길면 400, 없는 대화면 404
+    perform(
+            put("/internal/comics/by-conversation/{conversationId}/summary", conversation)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"summary\":\" \"}"))
+        .andExpect(status().isBadRequest());
+    perform(
+            put("/internal/comics/by-conversation/{conversationId}/summary", conversation)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"summary\":\"" + "가".repeat(1001) + "\"}"))
+        .andExpect(status().isBadRequest());
+    perform(
+            put("/internal/comics/by-conversation/{conversationId}/summary", PublicId.generate())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"summary\":\"요약\"}"))
+        .andExpect(status().isNotFound());
+  }
+
+  @Test
+  @DisplayName("FR-006: 줄거리 요약 없이 등록한 만화(예전 conversation-service)는 요약이 null이다")
+  void withoutSummary() throws Exception {
+    String alice = PublicId.generate();
+    String conversation = PublicId.generate();
+    String body =
+        perform(
+                post("/internal/comics")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(
+                        registerBody(alice, conversation)
+                            .replace("\"summary\":\"할머니가 손녀에게 옛날 이야기를 들려준다.\",", "")))
+            .andExpect(status().isCreated())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+    String comicId = JsonPath.read(body, "$.comicId");
+    perform(as(get("/api/v1/comics/{id}", comicId), alice))
+        .andExpect(jsonPath("$.summary").doesNotExist());
   }
 
   private static String png(int width, int height) throws Exception {

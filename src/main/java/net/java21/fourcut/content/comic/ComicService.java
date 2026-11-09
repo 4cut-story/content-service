@@ -83,6 +83,7 @@ public class ComicService {
             ? null
             : r.cast().stream().map(m -> new CastMember(m.role(), m.name(), m.lookId())).toList();
     comic.describe(cast == null ? null : json.writeValueAsString(cast), r.concept(), r.dialect());
+    comic.recordSummary(summaryOf(r.summary()));
     comic.recordProduction(productionJson(r.production()));
     return viewsOf(List.of(comics.save(comic))).get(0);
   }
@@ -109,6 +110,7 @@ public class ComicService {
                   r.cast() == null ? null : json.writeValueAsString(r.cast()),
                   r.concept(),
                   r.dialect());
+              comic.recordSummary(summaryOf(r.summary()));
               comic.recordProduction(productionJson(r.production()));
               Comic saved = comics.save(comic);
               return new RegisteredComic(saved.getPublicId(), true);
@@ -228,6 +230,7 @@ public class ComicService {
                     castViewsOf(c),
                     c.getConcept(),
                     c.getDialect(),
+                    c.getSummary(),
                     productionOf(c)))
         .toList();
   }
@@ -254,6 +257,35 @@ public class ComicService {
               return true;
             })
         .orElse(false);
+  }
+
+  /**
+   * 대화로 찾은 만화에 줄거리 요약을 남긴다 (내부). 예전 만화를 conversation-service가 남은 콘티로 채울 때 쓴다.
+   *
+   * @param overwrite false면 이미 있는 요약은 그대로 둔다
+   * @return 만화가 없으면 false
+   */
+  @Transactional
+  public boolean recordSummary(String conversationId, String summary, boolean overwrite) {
+    String text = summaryOf(summary);
+    if (text == null) {
+      throw new ApiException(ErrorCode.VALIDATION_FAILED);
+    }
+    return comics
+        .findByConversationId(conversationId)
+        .map(
+            c -> {
+              if (overwrite || c.getSummary() == null) {
+                c.recordSummary(text);
+              }
+              return true;
+            })
+        .orElse(false);
+  }
+
+  /** 저장할 줄거리 요약. 비어 있으면 null. 길이는 요청 검증이 막는다. */
+  private static String summaryOf(String summary) {
+    return summary == null || summary.isBlank() ? null : summary.strip();
   }
 
   /** 내 만화의 제작 정보를 바꾼다. 남의 만화면 404, 객체가 아니거나 너무 크면 400. */

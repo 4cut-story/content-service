@@ -15,6 +15,9 @@ import org.hibernate.type.SqlTypes;
 @Table(name = "comics")
 public class Comic extends BaseEntity {
 
+  /** 줄거리 요약 최대 길이 (V4 마이그레이션 summary 컬럼). */
+  public static final int MAX_SUMMARY = 1000;
+
   /** 만화 상태. */
   public enum State {
     IN_INBOX,
@@ -68,6 +71,10 @@ public class Comic extends BaseEntity {
   @Column(columnDefinition = "json")
   private String production;
 
+  /** 만화 아래 줄거리 요약. 예전 만화는 null. */
+  @Column(length = MAX_SUMMARY)
+  private String summary;
+
   @Enumerated(EnumType.STRING)
   @Column(nullable = false, length = 20)
   private State state = State.IN_INBOX;
@@ -103,6 +110,15 @@ public class Comic extends BaseEntity {
   /** 제작 정보를 남긴다. 이미 있으면 덮어쓴다. */
   public void recordProduction(String production) {
     this.production = production;
+  }
+
+  /** 줄거리 요약을 남긴다. 이미 있으면 덮어쓴다. */
+  public void recordSummary(String summary) {
+    this.summary = summary;
+  }
+
+  public String getSummary() {
+    return summary;
   }
 
   public String getProduction() {
