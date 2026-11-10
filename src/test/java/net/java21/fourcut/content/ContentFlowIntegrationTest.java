@@ -865,6 +865,50 @@ class ContentFlowIntegrationTest {
        {"index":2,"role":"결","image":"panels/2.png","durationMs":3500,"sound":null,"motion":null}]}
       """;
 
+  private static final String VOICE_LIVE =
+      """
+      {"version":1,"panels":[
+       {"index":1,"role":"기","image":"panels/1.png","durationMs":5000,"aspect":"16:9",
+        "captions":[{"speaker":"민지","text":"안녕","startMs":300,"endMs":1800,
+                     "voice":{"path":"voice/1-1.mp3","durationMs":1300}}],
+        "sound":null,"motion":null}]}
+      """;
+
+  @Test
+  @DisplayName("003 FR-050: 자막의 대사 음성 주소를 panel·voice로 주고, frame과 함께면 400, 없는 대사는 404, 삭제 때 함께 지운다")
+  void liveVoice() throws Exception {
+    String alice = PublicId.generate();
+    String conversation = PublicId.generate();
+    String comicId = registerLive(alice, conversation, VOICE_LIVE);
+
+    perform(
+            as(
+                get("/api/v1/comics/{id}/image", comicId).param("panel", "1").param("voice", "1"),
+                alice))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.url").value(org.hamcrest.Matchers.containsString("/voice/1-1.mp3")));
+    perform(
+            as(
+                get("/api/v1/comics/{id}/image", comicId).param("panel", "1").param("voice", "2"),
+                alice))
+        .andExpect(status().isNotFound());
+    perform(
+            as(
+                get("/api/v1/comics/{id}/image", comicId)
+                    .param("panel", "1")
+                    .param("voice", "1")
+                    .param("frame", "b"),
+                alice))
+        .andExpect(status().isBadRequest());
+    String postId = publish(alice, comicId, "PUBLIC");
+    perform(get("/api/v1/posts/{id}/image", postId).param("panel", "1").param("voice", "1"))
+        .andExpect(status().isOk());
+
+    putObject("comics/" + conversation + "/voice/1-1.mp3");
+    perform(as(delete("/api/v1/comics/{id}", comicId), alice)).andExpect(status().isNoContent());
+    assertThat(objectExists("comics/" + conversation + "/voice/1-1.mp3")).isFalse();
+  }
+
   private String registerLive(String owner, String conversation, String live) throws Exception {
     String body = registerBody(owner, conversation).strip();
     body = body.substring(0, body.length() - 1) + ",\"live\":" + live + "}";

@@ -98,8 +98,9 @@ public class PostController {
       @RequestParam(required = false) String size,
       @RequestParam(required = false) Integer cast,
       @RequestParam(required = false) Integer panel,
-      @RequestParam(required = false) String frame) {
-    return posts.image(Viewer.of(userId), id, ImageSize.parse(size), cast, panel, frame);
+      @RequestParam(required = false) String frame,
+      @RequestParam(required = false) Integer voice) {
+    return posts.image(Viewer.of(userId), id, ImageSize.parse(size), cast, panel, frame, voice);
   }
 
   /** 게시물의 라이브 모드 재생 정보 (003-live-mode). 볼 수 없거나 예전 만화면 404. */

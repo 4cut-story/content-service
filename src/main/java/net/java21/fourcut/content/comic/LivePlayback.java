@@ -27,6 +27,9 @@ final class LivePlayback {
   /** 넓은 그림 컷의 깊이 지도 경로(FR-048). */
   private static final Pattern DEPTH = Pattern.compile("panels/([1-9]|10)-depth\\.png");
 
+  /** 대사 음성 경로: voice/{컷}-{대사 순번}.mp3 (Caption.voice). */
+  private static final Pattern VOICE = Pattern.compile("voice/([1-9]|10)-[1-9]\\.mp3");
+
   private LivePlayback() {}
 
   /** 저장할 JSON. 객체가 아니거나, 너무 크거나, 컷이 없거나, 그림 경로가 규칙에 맞지 않으면 null(라이브 없이 등록한다). */
@@ -53,6 +56,12 @@ final class LivePlayback {
       if (!depth.isMissingNode() && !depth.isNull() && !depthValid(depth)) {
         return null;
       }
+      for (JsonNode c : p.path("captions")) {
+        JsonNode voice = c.path("voice");
+        if (voice.isObject() && !voiceValid(voice.path("path"))) {
+          return null;
+        }
+      }
     }
     String raw = json.writeValueAsString(live);
     return raw.length() > MAX_CHARS ? null : raw;
@@ -64,6 +73,32 @@ final class LivePlayback {
 
   private static boolean depthValid(JsonNode path) {
     return path.isString() && DEPTH.matcher(path.asString()).matches();
+  }
+
+  private static boolean voiceValid(JsonNode path) {
+    return path.isString() && VOICE.matcher(path.asString()).matches();
+  }
+
+  /** 재생 정보에 나오는 대사 음성 경로(자막의 voice.path). */
+  static Set<String> voices(JsonNode live) {
+    Set<String> out = new LinkedHashSet<>();
+    for (JsonNode p : live.path("panels")) {
+      for (JsonNode c : p.path("captions")) {
+        JsonNode path = c.path("voice").path("path");
+        if (voiceValid(path)) {
+          out.add(path.asString());
+        }
+      }
+    }
+    return out;
+  }
+
+  /** 대사 음성 상대 경로. 컷은 1~10, 대사 순번은 1~9가 아니면 404. */
+  static String voicePath(int panel, int line) {
+    if (panel < 1 || panel > 10 || line < 1 || line > 9) {
+      throw ApiException.notFound();
+    }
+    return "voice/" + panel + "-" + line + ".mp3";
   }
 
   /** 재생 정보에 나오는 그림 경로(첫 그림, 움직임 컷의 두 번째~네 번째 그림, 깊이 지도). */
