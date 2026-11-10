@@ -1,5 +1,6 @@
 package net.java21.fourcut.content.follow;
 
+import net.java21.fourcut.content.support.CursorPage;
 import net.java21.fourcut.content.web.HeaderNames;
 import net.java21.fourcut.content.web.Viewer;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -9,6 +10,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /** 팔로우. 사용자 관련이지만 {@code /api/v1/users/**}는 auth-service 전용이라 여기에 둔다. */
@@ -45,5 +47,25 @@ public class FollowController {
       @RequestHeader(value = HeaderNames.USER_ID, required = false) String viewer,
       @PathVariable String userId) {
     return follows.stats(Viewer.of(viewer), userId);
+  }
+
+  /** 이 사용자를 팔로우한 사람 (최근 순). */
+  @GetMapping("/api/v1/follows/{userId}/followers")
+  public CursorPage<FollowEntry> followers(
+      @RequestHeader(value = HeaderNames.USER_ID, required = false) String viewer,
+      @PathVariable String userId,
+      @RequestParam(required = false) String cursor,
+      @RequestParam(required = false) Integer size) {
+    return follows.followers(Viewer.of(viewer), userId, cursor, size);
+  }
+
+  /** 이 사용자가 팔로우한 사람 (최근 순). */
+  @GetMapping("/api/v1/follows/{userId}/following")
+  public CursorPage<FollowEntry> following(
+      @RequestHeader(value = HeaderNames.USER_ID, required = false) String viewer,
+      @PathVariable String userId,
+      @RequestParam(required = false) String cursor,
+      @RequestParam(required = false) Integer size) {
+    return follows.following(Viewer.of(viewer), userId, cursor, size);
   }
 }
