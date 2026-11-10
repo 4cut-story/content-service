@@ -710,6 +710,58 @@ class ContentFlowIntegrationTest {
         .andExpect(jsonPath("$.posts").value(1))
         .andExpect(jsonPath("$.comics").value(1));
 
+    // 002 FR-019: 피드 "팔로잉" 탭은 내가 팔로우한 사람의 게시물만
+    perform(as(get("/api/v1/feed").param("scope", "following"), bob))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.items.length()").value(1))
+        .andExpect(jsonPath("$.items[0].postId").value(postId))
+        .andDo(
+            doc(
+                "feed-following",
+                requestHeaders(USER),
+                queryParameters(
+                    parameterWithName("scope").description("all(기본) 또는 following(내가 팔로우한 사람만)"))));
+    perform(as(get("/api/v1/feed").param("scope", "following"), alice))
+        .andExpect(jsonPath("$.items.length()").value(0));
+    perform(get("/api/v1/feed").param("scope", "following")).andExpect(status().isUnauthorized());
+    perform(as(get("/api/v1/feed").param("scope", "nope"), bob))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.error.code").value("VALIDATION_FAILED"));
+
+    // 002 FR-018: 팔로워·팔로잉 목록 (누구나 볼 수 있고, 보는 사람이 팔로우하는지 함께)
+    perform(as(get("/api/v1/follows/{userId}/followers", alice), alice))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.items.length()").value(1))
+        .andExpect(jsonPath("$.items[0].userId").value(bob))
+        .andExpect(jsonPath("$.items[0].followedByMe").value(false))
+        .andExpect(jsonPath("$.nextCursor").isEmpty())
+        .andDo(
+            doc(
+                "follow-followers",
+                pathParameters(parameterWithName("userId").description("사용자 ID")),
+                queryParameters(
+                    parameterWithName("cursor").optional().description("다음 페이지 커서"),
+                    parameterWithName("size").optional().description("페이지 크기 (기본 20, 최대 50)")),
+                responseFields(
+                    fieldWithPath("items[].userId").description("팔로우한 사람 ID"),
+                    fieldWithPath("items[].followedAt").description("팔로우한 시각"),
+                    fieldWithPath("items[].followedByMe").description("보는 사람이 이 사람을 팔로우하는지"),
+                    fieldWithPath("nextCursor")
+                        .type(JsonFieldType.STRING)
+                        .optional()
+                        .description("다음 페이지 커서. 마지막이면 null"))));
+    perform(get("/api/v1/follows/{userId}/following", bob))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.items[0].userId").value(alice))
+        .andExpect(jsonPath("$.items[0].followedByMe").value(false));
+    perform(as(get("/api/v1/follows/{userId}/following", bob), bob))
+        .andExpect(jsonPath("$.items[0].followedByMe").value(true));
+    perform(get("/api/v1/follows/{userId}/followers", bob))
+        .andExpect(jsonPath("$.items.length()").value(0));
+    perform(get("/api/v1/follows/{userId}/followers", "bad")).andExpect(status().isNotFound());
+    perform(get("/api/v1/follows/{userId}/followers", alice).param("size", "0"))
+        .andExpect(status().isBadRequest());
+
     perform(as(put("/api/v1/follows/{userId}", bob), bob))
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.error.code").value("SELF_FOLLOW"));

@@ -67,8 +67,15 @@ public class PostController {
   public CursorPage<PostView> feed(
       @RequestHeader(value = HeaderNames.USER_ID, required = false) String userId,
       @RequestParam(required = false) String cursor,
-      @RequestParam(required = false) Integer size) {
-    return posts.feed(Viewer.of(userId), cursor, size);
+      @RequestParam(required = false) Integer size,
+      @RequestParam(required = false) String scope) {
+    if (scope == null || scope.isBlank() || "all".equals(scope)) {
+      return posts.feed(Viewer.of(userId), cursor, size);
+    }
+    if ("following".equals(scope)) {
+      return posts.followingFeed(Viewer.of(userId), cursor, size);
+    }
+    throw new ApiException(ErrorCode.VALIDATION_FAILED, "scope는 all 또는 following이어야 해요.");
   }
 
   /** 프로필 게시물. 보는 사람 기준 공개 범위를 적용한다 (로그인하지 않았으면 전체 공개만). */

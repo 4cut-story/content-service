@@ -32,6 +32,14 @@ public interface PostRepository extends JpaRepository<Post, Long> {
           + " order by p.publishedAt desc, p.id desc")
   List<Post> feed(String viewer, Instant at, long id, Limit limit);
 
+  /** 내가 팔로우한 사람의 게시물만 (전체 공개와 팔로워만 모두). */
+  @Query(
+      "select p from Post p where exists (select 1 from Follow f where f.followerId = :viewer"
+          + " and f.followeeId = p.authorId) and "
+          + BEFORE
+          + " order by p.publishedAt desc, p.id desc")
+  List<Post> followingFeed(String viewer, Instant at, long id, Limit limit);
+
   @Query(
       "select p from Post p where p.authorId = :author and "
           + VISIBLE

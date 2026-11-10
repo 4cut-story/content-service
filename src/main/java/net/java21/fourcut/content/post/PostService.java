@@ -117,6 +117,18 @@ public class PostService {
     return page(viewer, limit, posts.feed(viewer, from.at(), from.id(), Limit.of(limit + 1)));
   }
 
+  /** 내가 팔로우한 사람의 게시물만 (피드 "팔로잉" 탭). 로그인해야 한다. */
+  @Transactional(readOnly = true)
+  public CursorPage<PostView> followingFeed(String viewer, String cursor, Integer size) {
+    if (viewer.isEmpty()) {
+      throw new ApiException(ErrorCode.UNAUTHORIZED);
+    }
+    int limit = CursorPage.size(size);
+    Cursor from = Cursor.decodeOr(cursor, Cursor.NEWEST_FIRST);
+    return page(
+        viewer, limit, posts.followingFeed(viewer, from.at(), from.id(), Limit.of(limit + 1)));
+  }
+
   @Transactional(readOnly = true)
   public CursorPage<PostView> byAuthor(String viewer, String author, String cursor, Integer size) {
     if (!PublicId.isValid(author)) {
