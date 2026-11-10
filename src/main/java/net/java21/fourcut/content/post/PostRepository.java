@@ -54,6 +54,31 @@ public interface PostRepository extends JpaRepository<Post, Long> {
   @Query("update Post p set p.likeCount = p.likeCount + :delta where p.id = :postId")
   int addLikes(Long postId, int delta);
 
+  /**
+   * 방문자가 이 게시물을 본 시각을 남긴다. 처음 보거나 마지막으로 센 지 cutoff보다 오래됐으면 1, 그 안에 다시 봤으면 0(세지 않음). 동시에 와도 한 번만 센다.
+   */
+  @Modifying
+  @Query(
+      nativeQuery = true,
+      value =
+          "insert into {h-schema}post_views as v (post_id, viewer_key, viewed_at)"
+              + " values (:postId, :viewerKey, :now)"
+              + " on conflict (post_id, viewer_key) do update"
+              + " set viewed_at = excluded.viewed_at, updated_at = excluded.viewed_at"
+              + " where v.viewed_at <= :cutoff")
+  int markViewed(Long postId, String viewerKey, Instant now, Instant cutoff);
+
+  @Modifying
+  @Query("update Post p set p.viewCount = p.viewCount + 1 where p.id = :postId")
+  int addViews(Long postId);
+
+  @Query("select p.viewCount from Post p where p.id = :postId")
+  long viewCountOf(Long postId);
+
+  @Modifying
+  @Query(nativeQuery = true, value = "delete from {h-schema}post_views where viewed_at < :before")
+  int forgetViewsBefore(Instant before);
+
   @Modifying
   @Query("update Post p set p.commentCount = p.commentCount + :delta where p.id = :postId")
   int addComments(Long postId, int delta);

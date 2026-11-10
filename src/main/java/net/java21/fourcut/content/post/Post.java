@@ -43,6 +43,10 @@ public class Post extends BaseEntity {
   @Column(name = "comment_count", nullable = false, insertable = false, updatable = false)
   private int commentCount;
 
+  /** 조회수. 같은 방문자가 10분 안에 다시 본 것은 세지 않는다 ({@link PostViews}). */
+  @Column(name = "view_count", nullable = false, insertable = false, updatable = false)
+  private long viewCount;
+
   protected Post() {
     // JPA 전용
   }
@@ -87,5 +91,9 @@ public class Post extends BaseEntity {
 
   public int getCommentCount() {
     return commentCount;
+  }
+
+  public long getViewCount() {
+    return viewCount;
   }
 }

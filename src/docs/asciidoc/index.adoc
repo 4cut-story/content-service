@@ -94,6 +94,14 @@ include::{snippets}/post-like/http-request.adoc[]
 include::{snippets}/post-like/http-response.adoc[]
 include::{snippets}/post-unlike/http-request.adoc[]
 
+== 조회수
+게시물 상세를 연 방문자마다 센다. 로그인하지 않아도 된다. `X-Viewer-Key`(web이 방문자 쿠키를 SHA-256으로 바꾼 값)가 같으면 10분 안에 다시 봐도 한 번으로 센다(`counted: false`). 봇은 web이 걸러서 부르지 않는다.
+
+include::{snippets}/post-view/http-request.adoc[]
+include::{snippets}/post-view/request-headers.adoc[]
+include::{snippets}/post-view/http-response.adoc[]
+include::{snippets}/post-view/response-fields.adoc[]
+
 == 댓글
 
 === 목록 (오래된 순)
