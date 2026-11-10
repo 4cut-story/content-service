@@ -9,6 +9,9 @@ public interface ObjectStorage {
   /** 짧게 쓰는 사전 서명 GET 주소. web 서버만 받아서 이미지를 중계한다. */
   String presignGet(String key, Duration ttl);
 
+  /** 객체를 받는다. 목록 썸네일을 만들 때 원본 그림을 읽는다. */
+  byte[] get(String key);
+
   /** 객체를 올린다. 같은 키가 있으면 덮어쓴다. */
   void put(String key, byte[] bytes, String contentType);
 
