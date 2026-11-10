@@ -4,7 +4,7 @@ import java.util.Locale;
 import net.java21.fourcut.content.error.ApiException;
 import net.java21.fourcut.content.error.ErrorCode;
 
-/** 이미지 크기: 원본(full) 또는 썸네일(thumb). */
+/** 이미지 크기: 원본(full) 또는 썸네일(thumb, 목록에 쓰는 첫 컷 그림). */
 public enum ImageSize {
   FULL,
   THUMB;
@@ -19,10 +19,5 @@ public enum ImageSize {
     } catch (IllegalArgumentException e) {
       throw new ApiException(ErrorCode.VALIDATION_FAILED, "size는 full 또는 thumb이어야 해요.", e);
     }
-  }
-
-  /** 만화의 해당 크기 객체 키. */
-  public String keyOf(Comic comic) {
-    return this == FULL ? comic.getImageKey() : comic.getThumbKey();
   }
 }

@@ -39,18 +39,21 @@ public class ComicService {
   private final ObjectStorage storage;
   private final JsonMapper json;
   private final ImportProperties importers;
+  private final ComicCovers covers;
 
   public ComicService(
       ComicRepository comics,
       PostRepository posts,
       ObjectStorage storage,
       JsonMapper json,
-      ImportProperties importers) {
+      ImportProperties importers,
+      ComicCovers covers) {
     this.comics = comics;
     this.posts = posts;
     this.storage = storage;
     this.json = json;
     this.importers = importers;
+    this.covers = covers;
   }
 
   /**
@@ -144,9 +147,12 @@ public class ComicService {
     comics.delete(comic);
   }
 
-  /** 만화의 이미지 객체 키: 원본, 썸네일, 등장인물 얼굴 그림. */
+  /** 만화의 이미지 객체 키: 원본, 썸네일, 목록 썸네일, 등장인물 얼굴 그림. */
   public List<String> imageKeys(Comic comic) {
     List<String> keys = new ArrayList<>(List.of(comic.getImageKey(), comic.getThumbKey()));
+    if (comic.getCoverKey() != null && !keys.contains(comic.getCoverKey())) {
+      keys.add(comic.getCoverKey());
+    }
     castOf(comic).stream().map(CastMember::portraitKey).filter(k -> k != null).forEach(keys::add);
     JsonNode live = rawLive(comic);
     if (live != null) {
@@ -216,9 +222,9 @@ public class ComicService {
     return raw == null || raw.isBlank() ? null : json.readTree(raw);
   }
 
-  /** 만화 이미지의 사전 서명 주소. */
+  /** 만화 이미지의 사전 서명 주소. 썸네일은 목록용 첫 컷 그림이다(없으면 지금 만든다). */
   public ImageUrl imageOf(Comic comic, ImageSize size) {
-    return presign(size.keyOf(comic));
+    return presign(size == ImageSize.THUMB ? covers.keyOf(comic) : comic.getImageKey());
   }
 
   /** 등장인물 얼굴 그림의 사전 서명 주소. 그 순서의 인물이 없거나 얼굴 그림이 없으면 404. */

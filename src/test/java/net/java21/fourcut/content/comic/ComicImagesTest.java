@@ -63,4 +63,31 @@ class ComicImagesTest {
             new ByteArrayInputStream(ComicImages.thumbnail(new BufferedImage(200, 50, 1))));
     assertThat(small.getWidth()).isEqualTo(200);
   }
+
+  @Test
+  @DisplayName("목록 썸네일은 제목 띠 아래 첫 컷만 잘라 폭 480px JPEG로 만든다")
+  void cover() throws Exception {
+    var strip = new BufferedImage(800, 3206, BufferedImage.TYPE_INT_RGB);
+    var g = strip.createGraphics();
+    g.setColor(java.awt.Color.RED);
+    g.fillRect(0, 112, 800, 757);
+    g.dispose();
+    byte[] bytes = ComicImages.cover(strip);
+    assertThat(bytes[0] & 0xFF).isEqualTo(0xFF);
+    assertThat(bytes[1] & 0xFF).isEqualTo(0xD8);
+    var cover = ImageIO.read(new ByteArrayInputStream(bytes));
+    assertThat(cover.getWidth()).isEqualTo(480);
+    assertThat(cover.getHeight()).isEqualTo(454);
+    // 위 가장자리까지 첫 컷(빨강)이고 제목 띠(검정)는 들어가지 않는다
+    assertThat((cover.getRGB(240, 2) >> 16) & 0xFF).isGreaterThan(200);
+  }
+
+  @Test
+  @DisplayName("합성 규격보다 짧은 그림은 위쪽 정사각형을 쓴다")
+  void coverOfShortImage() throws Exception {
+    var cover =
+        ImageIO.read(new ByteArrayInputStream(ComicImages.cover(new BufferedImage(400, 200, 1))));
+    assertThat(cover.getWidth()).isEqualTo(400);
+    assertThat(cover.getHeight()).isEqualTo(200);
+  }
 }

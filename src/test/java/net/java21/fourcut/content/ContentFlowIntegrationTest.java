@@ -23,6 +23,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.jayway.jsonpath.JsonPath;
 import net.java21.fourcut.content.comic.Comic;
+import net.java21.fourcut.content.comic.ComicCovers;
 import net.java21.fourcut.content.comic.ComicRepository;
 import net.java21.fourcut.content.post.PostRepository;
 import net.java21.fourcut.content.support.PublicId;
@@ -223,6 +224,47 @@ class ContentFlowIntegrationTest {
       }
       throw e;
     }
+  }
+
+  @Autowired private ComicCovers covers;
+
+  @Test
+  @DisplayName("목록 썸네일: 첫 요청이나 주기 작업이 첫 컷 JPEG를 만들고, 못 읽는 그림이면 기존 썸네일을 쓴다")
+  void covers() throws Exception {
+    String alice = PublicId.generate();
+    String conversation = PublicId.generate();
+    var png = new java.io.ByteArrayOutputStream();
+    javax.imageio.ImageIO.write(
+        new java.awt.image.BufferedImage(800, 3206, java.awt.image.BufferedImage.TYPE_INT_RGB),
+        "png",
+        png);
+    s3.putObject(
+        b ->
+            b.bucket(TestcontainersConfiguration.BUCKET)
+                .key("comics/" + conversation + "/full.png"),
+        RequestBody.fromBytes(png.toByteArray()));
+    String comicId = register(alice, conversation);
+
+    perform(as(get("/api/v1/comics/{id}/image", comicId).param("size", "thumb"), alice))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.url").value(org.hamcrest.Matchers.containsString("cover.jpg")));
+    assertThat(objectExists("comics/" + conversation + "/cover.jpg")).isTrue();
+    assertThat(comics.findByPublicId(comicId).orElseThrow().getCoverKey())
+        .isEqualTo("comics/" + conversation + "/cover.jpg");
+
+    // 원본이 그림이 아니면 기존 썸네일을 남기고, 원본이 없으면 다음에 다시 시도한다
+    String broken = PublicId.generate();
+    putObject("comics/" + broken + "/full.png");
+    String brokenId = register(alice, broken);
+    String missingId = register(alice, PublicId.generate());
+    covers.sweep();
+    assertThat(comics.findByPublicId(brokenId).orElseThrow().getCoverKey())
+        .isEqualTo("comics/" + broken + "/thumb.png");
+    assertThat(comics.findByPublicId(missingId).orElseThrow().getCoverKey()).isNull();
+
+    // 지우면 목록 썸네일도 지운다
+    perform(as(delete("/api/v1/comics/{id}", comicId), alice)).andExpect(status().isNoContent());
+    assertThat(objectExists("comics/" + conversation + "/cover.jpg")).isFalse();
   }
 
   @Test

@@ -15,7 +15,8 @@ class ComicCastTest {
           null,
           null,
           JsonMapper.builder().build(),
-          new ImportProperties(java.util.List.of()));
+          new ImportProperties(java.util.List.of()),
+          null);
 
   private static Comic comic() {
     return new Comic("o", "c", "t", "i", "th", "ko", "[]");

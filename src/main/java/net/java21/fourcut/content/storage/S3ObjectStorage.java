@@ -33,6 +33,11 @@ public class S3ObjectStorage implements ObjectStorage {
   }
 
   @Override
+  public byte[] get(String key) {
+    return client.getObjectAsBytes(r -> r.bucket(bucket).key(key)).asByteArray();
+  }
+
+  @Override
   public void put(String key, byte[] bytes, String contentType) {
     client.putObject(
         r -> r.bucket(bucket).key(key).contentType(contentType), RequestBody.fromBytes(bytes));

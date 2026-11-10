@@ -45,6 +45,10 @@ public class Comic extends BaseEntity {
   @Column(name = "thumb_key", nullable = false, length = 500)
   private String thumbKey;
 
+  /** 목록 썸네일(첫 컷 JPEG) 객체 키. 아직 만들지 않았으면 null이고, 처음 요청하거나 주기 작업이 만든다. */
+  @Column(name = "cover_key", length = 500)
+  private String coverKey;
+
   @Column(nullable = false, length = 2)
   private String language;
 
@@ -173,6 +177,10 @@ public class Comic extends BaseEntity {
 
   public String getThumbKey() {
     return thumbKey;
+  }
+
+  public String getCoverKey() {
+    return coverKey;
   }
 
   public String getLanguage() {
