@@ -700,6 +700,45 @@ class ContentFlowIntegrationTest {
     return JsonPath.read(response, "$.comicId");
   }
 
+  private String registerWith(String owner, String conversation, String extra, int expected)
+      throws Exception {
+    String body = registerBody(owner, conversation).strip();
+    body = body.substring(0, body.length() - 1) + "," + extra + "}";
+    String response =
+        perform(post("/internal/comics").contentType(MediaType.APPLICATION_JSON).content(body))
+            .andExpect(status().is(expected))
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+    return JsonPath.read(response, "$.comicId");
+  }
+
+  @Test
+  @DisplayName(
+      "004 FR-062·FR-063: 바로 공개(autoPublish)로 등록한 새 만화는 제목을 캡션으로 전체 공개 게시하고, 다시 등록해도 게시물은 하나다")
+  void autoPublish() throws Exception {
+    String alice = PublicId.generate();
+    String bob = PublicId.generate();
+    String conversation = PublicId.generate();
+    String comicId = registerWith(alice, conversation, "\"autoPublish\":true", 201);
+
+    perform(as(get("/api/v1/comics/{id}", comicId), alice))
+        .andExpect(jsonPath("$.state").value("POSTED"));
+    perform(as(get("/api/v1/posts").param("authorId", alice), bob))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.items.length()").value(1))
+        .andExpect(jsonPath("$.items[0].caption").value("편의점 앞에서"))
+        .andExpect(jsonPath("$.items[0].visibility").value("PUBLIC"));
+
+    assertThat(registerWith(alice, conversation, "\"autoPublish\":true", 200)).isEqualTo(comicId);
+    perform(as(get("/api/v1/posts").param("authorId", alice), alice))
+        .andExpect(jsonPath("$.items.length()").value(1));
+
+    String inbox = registerWith(alice, PublicId.generate(), "\"autoPublish\":false", 201);
+    perform(as(get("/api/v1/comics/{id}", inbox), alice))
+        .andExpect(jsonPath("$.state").value("IN_INBOX"));
+  }
+
   @Test
   @DisplayName("003 FR-001·FR-018·FR-019: 라이브 재생 정보는 만화와 같은 공개 범위로 내주고, 컷 그림 주소를 주고, 삭제 때 함께 지운다")
   void live() throws Exception {

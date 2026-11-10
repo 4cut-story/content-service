@@ -18,6 +18,8 @@ import tools.jackson.databind.JsonNode;
  * @param summary 만화 아래 줄거리 요약 (몇 문장). 예전 conversation-service는 보내지 않는다
  * @param production 제작 정보 (JSON 객체). content-service는 내용을 보지 않고 그대로 둔다
  * @param live 라이브 모드 재생 정보 (JSON 객체, LivePlayback). 형식이 틀리면 버리고 등록한다
+ * @param autoPublish true면 새로 만든 만화를 바로 전체 공개로 게시한다 (RSS 구독의 "바로 공개", 004 FR-062). 예전
+ *     conversation-service는 보내지 않는다
  */
 public record RegisterComicRequest(
     @NotNull @Pattern(regexp = PublicId.PATTERN) String ownerId,
@@ -32,7 +34,8 @@ public record RegisterComicRequest(
     @Pattern(regexp = OPTION) String dialect,
     @Size(max = Comic.MAX_SUMMARY) String summary,
     JsonNode production,
-    JsonNode live) {
+    JsonNode live,
+    Boolean autoPublish) {
 
   /** 그림체·사투리 옵션 값 (conversation-service의 enum 이름). */
   static final String OPTION = "[A-Z_]{1,20}";
