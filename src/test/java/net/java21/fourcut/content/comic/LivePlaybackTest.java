@@ -92,4 +92,21 @@ class LivePlaybackTest {
     var bad = json.readTree("{\"panels\":[{\"image\":\"panels/1.png\",\"depth\":\"../x.png\"}]}");
     assertThat(LivePlayback.validated(json, bad)).isNull();
   }
+
+  @Test
+  @DisplayName("003 FR-050: 자막의 대사 음성 경로가 규칙에 맞아야 저장하고, 음성 목록을 뽑는다")
+  void voices() {
+    var live =
+        json.readTree(
+            "{\"version\":1,\"panels\":[{\"image\":\"panels/1.png\",\"captions\":[{\"text\":\"a\",\"voice\":{\"path\":\"voice/1-1.mp3\",\"durationMs\":900}},{\"text\":\"b\",\"voice\":null}]}]}");
+    assertThat(LivePlayback.validated(json, live)).isNotNull();
+    assertThat(LivePlayback.voices(live)).containsExactly("voice/1-1.mp3");
+    var bad =
+        json.readTree(
+            "{\"panels\":[{\"image\":\"panels/1.png\",\"captions\":[{\"voice\":{\"path\":\"../x.mp3\"}}]}]}");
+    assertThat(LivePlayback.validated(json, bad)).isNull();
+    assertThat(LivePlayback.voicePath(2, 3)).isEqualTo("voice/2-3.mp3");
+    assertThatThrownBy(() -> LivePlayback.voicePath(1, 0)).isInstanceOf(ApiException.class);
+    assertThatThrownBy(() -> LivePlayback.voicePath(11, 1)).isInstanceOf(ApiException.class);
+  }
 }

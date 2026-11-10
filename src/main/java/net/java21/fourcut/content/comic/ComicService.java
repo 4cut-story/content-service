@@ -167,6 +167,7 @@ public class ComicService {
     if (live != null) {
       String folder = LivePlayback.folder(comic.getImageKey());
       LivePlayback.images(live).forEach(path -> keys.add(folder + path));
+      LivePlayback.voices(live).forEach(path -> keys.add(folder + path));
       keys.add(folder + LivePlayback.FILE);
     }
     return keys;
@@ -186,9 +187,22 @@ public class ComicService {
   @Transactional(readOnly = true)
   public ImageUrl image(
       String owner, String comicId, ImageSize size, Integer cast, Integer panel, String frame) {
+    return image(owner, comicId, size, cast, panel, frame, null);
+  }
+
+  /** 만화함 이미지 주소. panel과 voice가 있으면 그 컷 대사 음성(MP3). */
+  @Transactional(readOnly = true)
+  public ImageUrl image(
+      String owner,
+      String comicId,
+      ImageSize size,
+      Integer cast,
+      Integer panel,
+      String frame,
+      Integer voice) {
     Comic comic = owned(owner, comicId);
     if (panel != null) {
-      return panelImageOf(comic, panel, frame, cast);
+      return panelImageOf(comic, panel, frame, cast, voice);
     }
     return cast == null ? imageOf(comic, size) : castImageOf(comic, cast);
   }
@@ -215,8 +229,28 @@ public class ComicService {
    * @param frame a(첫 그림, 기본), b·c(움직임 컷의 두 번째·세 번째 그림)
    */
   public ImageUrl panelImageOf(Comic comic, int panel, String frame, Integer cast) {
+    return panelImageOf(comic, panel, frame, cast, null);
+  }
+
+  /**
+   * 라이브 모드 컷 그림 또는 대사 음성의 사전 서명 주소.
+   *
+   * @param voice null이 아니면 그 컷 n번째(1부터) 대사 음성. frame과 함께 쓰면 400, 재생 정보에 없으면 404
+   */
+  public ImageUrl panelImageOf(Comic comic, int panel, String frame, Integer cast, Integer voice) {
     if (cast != null) {
       throw new ApiException(ErrorCode.VALIDATION_FAILED, "panel과 cast는 함께 쓸 수 없어요.");
+    }
+    if (voice != null) {
+      if (frame != null && !frame.isBlank()) {
+        throw new ApiException(ErrorCode.VALIDATION_FAILED, "voice와 frame은 함께 쓸 수 없어요.");
+      }
+      String path = LivePlayback.voicePath(panel, voice);
+      JsonNode live = rawLive(comic);
+      if (live == null || !LivePlayback.voices(live).contains(path)) {
+        throw ApiException.notFound();
+      }
+      return presign(LivePlayback.folder(comic.getImageKey()) + path);
     }
     String path = LivePlayback.path(panel, LivePlayback.frame(frame));
     JsonNode live = rawLive(comic);

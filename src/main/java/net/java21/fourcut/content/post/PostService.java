@@ -149,9 +149,22 @@ public class PostService {
   @Transactional(readOnly = true)
   public ImageUrl image(
       String viewer, String postId, ImageSize size, Integer cast, Integer panel, String frame) {
+    return image(viewer, postId, size, cast, panel, frame, null);
+  }
+
+  /** 게시물 이미지. panel과 voice가 있으면 그 컷 대사 음성(MP3). */
+  @Transactional(readOnly = true)
+  public ImageUrl image(
+      String viewer,
+      String postId,
+      ImageSize size,
+      Integer cast,
+      Integer panel,
+      String frame,
+      Integer voice) {
     Comic comic = comicOf(viewer, postId);
     if (panel != null) {
-      return comicService.panelImageOf(comic, panel, frame, cast);
+      return comicService.panelImageOf(comic, panel, frame, cast, voice);
     }
     return cast == null ? comicService.imageOf(comic, size) : comicService.castImageOf(comic, cast);
   }

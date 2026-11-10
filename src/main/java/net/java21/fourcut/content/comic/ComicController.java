@@ -92,8 +92,9 @@ public class ComicController {
       @RequestParam(required = false) String size,
       @RequestParam(required = false) Integer cast,
       @RequestParam(required = false) Integer panel,
-      @RequestParam(required = false) String frame) {
-    return comics.image(userId, id, ImageSize.parse(size), cast, panel, frame);
+      @RequestParam(required = false) String frame,
+      @RequestParam(required = false) Integer voice) {
+    return comics.image(userId, id, ImageSize.parse(size), cast, panel, frame, voice);
   }
 
   /** 내 만화의 라이브 모드 재생 정보 (003-live-mode). 남의 만화이거나 예전 만화면 404. */
