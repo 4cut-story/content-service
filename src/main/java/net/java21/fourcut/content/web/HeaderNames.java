@@ -8,5 +8,8 @@ public final class HeaderNames {
   public static final String TRACE_ID = "X-Trace-Id";
   public static final String WORKER_ID = "X-Worker-Id";
 
+  /** 조회수 중복 판단에 쓰는 방문자 키. web이 방문자 쿠키를 SHA-256으로 바꿔 붙인다. */
+  public static final String VIEWER_KEY = "X-Viewer-Key";
+
   private HeaderNames() {}
 }

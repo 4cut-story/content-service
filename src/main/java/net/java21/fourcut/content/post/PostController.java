@@ -29,9 +29,11 @@ import tools.jackson.databind.JsonNode;
 public class PostController {
 
   private final PostService posts;
+  private final PostViews views;
 
-  public PostController(PostService posts) {
+  public PostController(PostService posts, PostViews views) {
     this.posts = posts;
+    this.views = views;
   }
 
   @PostMapping("/api/v1/posts")
@@ -99,6 +101,15 @@ public class PostController {
       @RequestHeader(value = HeaderNames.USER_ID, required = false) String userId,
       @PathVariable String id) {
     return posts.live(Viewer.of(userId), id);
+  }
+
+  /** 게시물 상세를 한 번 봤다고 남긴다. 로그인하지 않아도 된다. 방문자 키(web이 붙인 방문자 쿠키의 해시)가 같으면 10분 안에 다시 봐도 한 번으로 센다. */
+  @PostMapping("/api/v1/posts/{id}/views")
+  public PostViews.ViewCount view(
+      @RequestHeader(value = HeaderNames.USER_ID, required = false) String userId,
+      @RequestHeader(value = HeaderNames.VIEWER_KEY, required = false) String viewerKey,
+      @PathVariable String id) {
+    return views.record(Viewer.of(userId), id, viewerKey);
   }
 
   @PutMapping("/api/v1/posts/{id}/like")

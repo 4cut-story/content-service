@@ -13,6 +13,7 @@ import tools.jackson.databind.JsonNode;
  * @param dialect 대사 사투리. 예전 만화는 null
  * @param summary 만화 아래 줄거리 요약. 예전 만화는 null
  * @param production 제작 정보 (단계별 모델·조건·걸린 시간). 예전 만화는 null
+ * @param viewCount 조회수 (같은 방문자가 10분 안에 다시 본 것은 세지 않는다)
  * @param live 라이브 모드 재생 정보가 있는지. 예전 만화는 false(만화보기만)
  */
 public record PostView(
@@ -25,6 +26,7 @@ public record PostView(
     Instant publishedAt,
     int likeCount,
     int commentCount,
+    long viewCount,
     boolean likedByMe,
     List<CastView> cast,
     String concept,

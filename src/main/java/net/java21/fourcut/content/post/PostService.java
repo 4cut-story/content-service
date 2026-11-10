@@ -219,6 +219,7 @@ public class PostService {
                   p.getPublishedAt(),
                   p.getLikeCount(),
                   p.getCommentCount(),
+                  p.getViewCount(),
                   liked.contains(p.getId()),
                   comic == null ? List.of() : comicService.castViewsOf(comic),
                   comic == null ? null : comic.getConcept(),

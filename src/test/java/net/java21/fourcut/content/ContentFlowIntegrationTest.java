@@ -110,6 +110,7 @@ class ContentFlowIntegrationTest {
     fieldWithPath("publishedAt").description("올린 시각 (피드 정렬 기준)"),
     fieldWithPath("likeCount").description("좋아요 수"),
     fieldWithPath("commentCount").description("댓글 수"),
+    fieldWithPath("viewCount").description("조회수. 같은 방문자가 10분 안에 다시 본 것은 세지 않는다"),
     fieldWithPath("likedByMe").description("내가 좋아요를 눌렀는지"),
     subsectionWithPath("cast")
         .description(
@@ -521,6 +522,74 @@ class ContentFlowIntegrationTest {
     perform(as(get("/api/v1/posts/{id}/image", postId).param("cast", "5"), bob))
         .andExpect(status().isNotFound());
     perform(as(get("/api/v1/comics/{id}/image", comicId).param("cast", "-1"), alice))
+        .andExpect(status().isNotFound());
+  }
+
+  @Autowired private net.java21.fourcut.content.post.PostViews postViews;
+  @Autowired private org.springframework.jdbc.core.JdbcTemplate jdbc;
+
+  @Test
+  @DisplayName("조회수: 방문자마다 세고, 같은 방문자가 10분 안에 다시 보면 세지 않는다")
+  void viewCount() throws Exception {
+    String alice = PublicId.generate();
+    String bob = PublicId.generate();
+    String postId = publish(alice, register(alice, PublicId.generate()), "PUBLIC");
+    String first = "a".repeat(64);
+    String second = "b".repeat(64);
+
+    perform(post("/api/v1/posts/{id}/views", postId).header("X-Viewer-Key", first))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.viewCount").value(1))
+        .andExpect(jsonPath("$.counted").value(true))
+        .andDo(
+            doc(
+                "post-view",
+                requestHeaders(
+                    headerWithName("X-Viewer-Key")
+                        .description("방문자 키. web이 방문자 쿠키를 SHA-256 16진수로 바꿔 붙인다"),
+                    headerWithName("X-User-Id").optional().description("로그인했으면 게이트웨이가 붙인 사용자 ID")),
+                pathParameters(parameterWithName("id").description("게시물 ID")),
+                responseFields(
+                    fieldWithPath("viewCount").description("지금 조회수"),
+                    fieldWithPath("counted").description("이번 조회를 셌는지. 10분 안에 다시 봤으면 false"))));
+    // 같은 방문자가 바로 다시 보면 세지 않는다 (로그인 여부와 관계없이 방문자 쿠키 기준)
+    perform(as(post("/api/v1/posts/{id}/views", postId), bob).header("X-Viewer-Key", first))
+        .andExpect(jsonPath("$.viewCount").value(1))
+        .andExpect(jsonPath("$.counted").value(false));
+    perform(post("/api/v1/posts/{id}/views", postId).header("X-Viewer-Key", second))
+        .andExpect(jsonPath("$.viewCount").value(2));
+
+    // 10분이 지나면 다시 센다
+    jdbc.update(
+        "update content.post_views set viewed_at = viewed_at - interval '11 minutes' where viewer_key = ?",
+        first);
+    perform(post("/api/v1/posts/{id}/views", postId).header("X-Viewer-Key", first))
+        .andExpect(jsonPath("$.viewCount").value(3))
+        .andExpect(jsonPath("$.counted").value(true));
+    perform(get("/api/v1/posts/{id}", postId)).andExpect(jsonPath("$.viewCount").value(3));
+    perform(get("/api/v1/feed")).andExpect(status().isOk());
+
+    // 지난 기록 정리: 10분이 지난 줄만 지운다
+    jdbc.update(
+        "update content.post_views set viewed_at = viewed_at - interval '11 minutes' where viewer_key = ?",
+        second);
+    postViews.sweep();
+    assertThat(
+            jdbc.queryForObject(
+                "select count(*) from content.post_views where viewer_key in (?, ?)",
+                Long.class,
+                first,
+                second))
+        .isEqualTo(1L);
+
+    // 방문자 키가 없거나 이상하면 400, 볼 수 없는 게시물은 404
+    perform(post("/api/v1/posts/{id}/views", postId)).andExpect(status().isBadRequest());
+    perform(post("/api/v1/posts/{id}/views", postId).header("X-Viewer-Key", "x y"))
+        .andExpect(status().isBadRequest());
+    String hidden = publish(alice, register(alice, PublicId.generate()), "FOLLOWERS");
+    perform(post("/api/v1/posts/{id}/views", hidden).header("X-Viewer-Key", first))
+        .andExpect(status().isNotFound());
+    perform(post("/api/v1/posts/{id}/views", "nope").header("X-Viewer-Key", first))
         .andExpect(status().isNotFound());
   }
 
