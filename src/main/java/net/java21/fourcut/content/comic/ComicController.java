@@ -1,6 +1,9 @@
 package net.java21.fourcut.content.comic;
 
 import jakarta.validation.Valid;
+import java.util.Locale;
+import net.java21.fourcut.content.error.ApiException;
+import net.java21.fourcut.content.error.ErrorCode;
 import net.java21.fourcut.content.support.CursorPage;
 import net.java21.fourcut.content.web.HeaderNames;
 import org.springframework.http.HttpStatus;
@@ -32,8 +35,21 @@ public class ComicController {
   public CursorPage<ComicView> inbox(
       @RequestHeader(HeaderNames.USER_ID) String userId,
       @RequestParam(required = false) String cursor,
-      @RequestParam(required = false) Integer size) {
-    return comics.inbox(userId, cursor, size);
+      @RequestParam(required = false) Integer size,
+      @RequestParam(required = false) String state) {
+    return comics.inbox(userId, parseState(state), cursor, size);
+  }
+
+  /** 목록 필터. 비우면 전체, IN_INBOX는 게시 안 한 것, POSTED는 게시한 것. */
+  static Comic.State parseState(String state) {
+    if (state == null || state.isBlank()) {
+      return null;
+    }
+    try {
+      return Comic.State.valueOf(state.toUpperCase(Locale.ROOT));
+    } catch (IllegalArgumentException e) {
+      throw new ApiException(ErrorCode.VALIDATION_FAILED, "state는 IN_INBOX 또는 POSTED여야 해요.", e);
+    }
   }
 
   /** 이미 그린 만화 그림으로 만화함에 넣는다 (허용한 사용자만, 파이프라인 밖에서 그린 시험 만화). */

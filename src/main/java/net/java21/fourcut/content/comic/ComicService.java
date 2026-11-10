@@ -123,9 +123,18 @@ public class ComicService {
 
   @Transactional(readOnly = true)
   public CursorPage<ComicView> inbox(String owner, String cursor, Integer size) {
+    return inbox(owner, null, cursor, size);
+  }
+
+  /** 내 만화함, 최신순. state가 있으면 그 상태(게시 안 함·게시함)만. */
+  @Transactional(readOnly = true)
+  public CursorPage<ComicView> inbox(String owner, Comic.State state, String cursor, Integer size) {
     int limit = CursorPage.size(size);
     Cursor from = Cursor.decodeOr(cursor, Cursor.NEWEST_FIRST);
-    List<Comic> rows = comics.inbox(owner, from.at(), from.id(), Limit.of(limit + 1));
+    List<Comic> rows =
+        state == null
+            ? comics.inbox(owner, from.at(), from.id(), Limit.of(limit + 1))
+            : comics.inboxByState(owner, state, from.at(), from.id(), Limit.of(limit + 1));
     return CursorPage.of(rows, limit, c -> new Cursor(c.getCreatedAt(), c.getId()), this::viewsOf);
   }
 
