@@ -24,6 +24,13 @@ public interface ComicRepository extends JpaRepository<Comic, Long> {
           + " order by c.createdAt desc, c.id desc")
   List<Comic> inbox(String ownerId, Instant at, long id, Limit limit);
 
+  /** 내 만화함 중 한 상태(게시 안 함·게시함)만, 최신순. */
+  @Query(
+      "select c from Comic c where c.ownerId = ?1 and c.state = ?2"
+          + " and (c.createdAt < ?3 or (c.createdAt = ?3 and c.id < ?4))"
+          + " order by c.createdAt desc, c.id desc")
+  List<Comic> inboxByState(String ownerId, Comic.State state, Instant at, long id, Limit limit);
+
   /** 목록 썸네일이 아직 없는 만화, 최신순. 주기 작업이 채운다. */
   @Query("select c from Comic c where c.coverKey is null order by c.id desc")
   List<Comic> withoutCover(Limit limit);

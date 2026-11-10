@@ -344,13 +344,27 @@ class ContentFlowIntegrationTest {
                 requestHeaders(USER),
                 queryParameters(
                     parameterWithName("cursor").optional().description("다음 페이지 커서"),
-                    parameterWithName("size").optional().description("페이지 크기 (기본 20, 최대 50)")),
+                    parameterWithName("size").optional().description("페이지 크기 (기본 20, 최대 50)"),
+                    parameterWithName("state")
+                        .optional()
+                        .description("IN_INBOX(게시 안 함) 또는 POSTED(게시함)만. 비우면 전체")),
                 responseFields(
                         fieldWithPath("nextCursor")
                             .type(JsonFieldType.STRING)
                             .optional()
                             .description("다음 페이지 커서. 마지막이면 null"))
                     .andWithPrefix("items[].", COMIC)));
+
+    // 스토리 탭: 게시 안 함(IN_INBOX)·게시함(POSTED)만 골라 본다
+    perform(as(get("/api/v1/comics").param("state", "in_inbox"), alice))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.items[0].id").value(comicId));
+    perform(as(get("/api/v1/comics").param("state", "POSTED"), alice))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.items").isEmpty());
+    perform(as(get("/api/v1/comics").param("state", "nope"), alice))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.error.code").value("VALIDATION_FAILED"));
 
     perform(as(get("/api/v1/comics/{id}", comicId), alice))
         .andExpect(status().isOk())
