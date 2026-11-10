@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Map;
 import net.java21.fourcut.content.error.ApiException;
 import net.java21.fourcut.content.error.ErrorCode;
+import net.java21.fourcut.content.post.PostService;
 import net.java21.fourcut.content.support.PublicId;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -25,16 +26,24 @@ import tools.jackson.databind.JsonNode;
 public class InternalComicController {
 
   private final ComicService comics;
+  private final PostService posts;
 
-  public InternalComicController(ComicService comics) {
+  public InternalComicController(ComicService comics, PostService posts) {
     this.comics = comics;
+    this.posts = posts;
   }
 
-  /** 완성된 만화 등록. 새로 만들면 201, 같은 대화로 이미 있으면 200과 기존 ID. */
+  /**
+   * 완성된 만화 등록. 새로 만들면 201, 같은 대화로 이미 있으면 200과 기존 ID. autoPublish면 새로 만든 만화만 전체 공개로 게시한다(다시 등록해도
+   * 게시물은 하나). 게시가 실패해도 만화는 만화함에 남는다.
+   */
   @PostMapping("/internal/comics")
   public ResponseEntity<Map<String, String>> register(
       @Valid @RequestBody RegisterComicRequest request) {
     RegisteredComic result = comics.register(request);
+    if (result.created() && Boolean.TRUE.equals(request.autoPublish())) {
+      posts.autoPublish(request.ownerId(), result.comicId(), request.title());
+    }
     return ResponseEntity.status(result.created() ? HttpStatus.CREATED : HttpStatus.OK)
         .body(Map.of("comicId", result.comicId()));
   }

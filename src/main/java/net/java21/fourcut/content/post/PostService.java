@@ -74,6 +74,22 @@ public class PostService {
     return post.getPublicId();
   }
 
+  /**
+   * 사용자가 미리 고른 "바로 공개"(RSS 구독)로 만든 만화를 전체 공개로 올린다. 캡션은 만화 제목이다. 기사로 만든 만화라 함께 대화한 사람의 동의가 필요 없다. 이미
+   * 올라가 있으면 그대로 둔다.
+   *
+   * @return 게시물 공개 ID. 이미 올라가 있었거나 만화가 없으면 null
+   */
+  @Transactional
+  public String autoPublish(String owner, String comicId, String caption) {
+    Comic comic =
+        comics.findByPublicId(comicId).filter(c -> c.getOwnerId().equals(owner)).orElse(null);
+    if (comic == null || comic.getState() == Comic.State.POSTED) {
+      return null;
+    }
+    return publish(owner, new PublishRequest(comicId, caption, Visibility.PUBLIC, true));
+  }
+
   /** 내 게시물을 내리거나(만화함으로) 만화째 지운다. 좋아요·댓글은 함께 지워진다. */
   @Transactional
   public void remove(String author, String postId, RemoveMode mode) {
